@@ -1,65 +1,86 @@
-import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="max-w-7xl mx-auto px-6 py-16">
+      {/* Hero */}
+      <section className="text-center mb-20">
+        <h1 className="text-5xl font-bold text-slate-100 mb-6 leading-tight">
+          Your launchpad for building a startup.
+        </h1>
+        <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-10">
+          Arcus is an extensive combination of tools designed to give students
+          the support and guidance they need to turn their ideas into real
+          companies.
+        </p>
+        <div className="flex items-center justify-center gap-4">
+          <Link
+            href="/signup"
+            className="px-6 py-3 text-base font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-500 transition-colors"
+          >
+            Get Started — It&apos;s Free
+          </Link>
+          <Link
+            href="/about"
+            className="px-6 py-3 text-base font-semibold text-blue-400 border border-blue-500 rounded-md hover:bg-blue-950 transition-colors"
+          >
+            Learn More
+          </Link>
+        </div>
+      </section>
+
+      {/* Feature cards */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="animate-float bg-blue-700 rounded-xl p-8">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+            <span className="text-blue-100 text-lg font-bold">AI</span>
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">arcus.ai</h3>
+          <p className="text-blue-100 text-sm leading-relaxed">
+            An intelligent assistant built for founders. Get answers to
+            startup questions, validate ideas, and draft your business plan
+            with AI tailored for student entrepreneurs.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="animate-float bg-blue-700 rounded-xl p-8">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+            <span className="text-blue-100 text-lg font-bold">&#9658;</span>
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">Roadmap</h3>
+          <p className="text-blue-100 text-sm leading-relaxed">
+            Step-by-step guidance from idea to launch. Follow a curated
+            roadmap that walks you through every stage of building your
+            startup — research, MVP, growth, and beyond.
+          </p>
         </div>
-      </main>
+
+        <div className="animate-float bg-blue-700 rounded-xl p-8">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+            <span className="text-blue-100 text-lg font-bold">&#9679;&#9679;</span>
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">Connect</h3>
+          <p className="text-blue-100 text-sm leading-relaxed">
+            Find your co-founders, mentors, and first customers. Connect with
+            a community of student builders, experienced advisors, and
+            investors who believe in student-led ventures.
+          </p>
+        </div>
+      </section>
+
+      {/* About section */}
+      <div className="animate-float bg-blue-700 rounded-xl p-12 text-center">
+        <h2 className="text-3xl font-bold text-white mb-4">
+          Built for student founders.
+        </h2>
+        <p className="text-blue-100 max-w-3xl mx-auto text-base leading-relaxed">
+          Starting a company while in school is one of the hardest things you
+          can do — but also one of the most rewarding. Arcus brings together
+          everything you need: AI-powered guidance, structured roadmaps, and a
+          network of people who&apos;ve been in your shoes. Whether you&apos;re
+          just starting out or already have traction, Arcus grows with you.
+        </p>
+      </div>
     </div>
   );
 }
