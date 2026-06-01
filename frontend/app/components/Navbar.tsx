@@ -28,10 +28,6 @@ export default function Navbar() {
               <Link href="/connect" className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-100 transition-colors rounded-md hover:bg-white/5">
                 Connect
               </Link>
-              <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-100 transition-colors rounded-md hover:bg-white/5">
-                Dashboard
-              </Link>
-
               <div className="w-px h-5 bg-white/10 mx-1" />
 
               <Link
