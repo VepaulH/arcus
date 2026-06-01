@@ -11,8 +11,14 @@ export default function AuthForm({ initialMode }: { initialMode: 'login' | 'sign
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
-  const { login } = useAuth()
+  const { isLoggedIn, login } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.replace('/')
+    }
+  }, [isLoggedIn, router])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
