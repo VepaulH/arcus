@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { connectApi } from '../../lib/api'
+import { connectApi, connectionsApi } from '../../lib/api'
+import type { Connection, IncomingRequest } from '../../lib/api'
 import type { Profile } from '../../../backend/types/database.types'
 
 const POSITIONS = ['Founder', 'Co-founder', 'Employee', 'Mentor', 'Advisor', 'Investor']
@@ -29,8 +30,26 @@ function getInitials(name: string): string {
     .toUpperCase()
 }
 
+type ConnectionStatus = 'none' | 'sent_pending' | 'received_pending' | 'connected'
+
+function getConnectionStatus(
+  myId: string,
+  targetId: string,
+  connections: Connection[]
+): { status: ConnectionStatus; connId?: string } {
+  const c = connections.find(
+    conn =>
+      (conn.requester_id === myId && conn.addressee_id === targetId) ||
+      (conn.requester_id === targetId && conn.addressee_id === myId)
+  )
+  if (!c) return { status: 'none' }
+  if (c.status === 'accepted') return { status: 'connected', connId: c.id }
+  if (c.requester_id === myId) return { status: 'sent_pending', connId: c.id }
+  return { status: 'received_pending', connId: c.id }
+}
+
 export default function ConnectPage() {
-  const { loading: authLoading } = useAuth()
+  const { loading: authLoading, userId } = useAuth()
 
   const [allUsers, setAllUsers] = useState<Profile[]>([])
   const [results, setResults] = useState<Profile[]>([])
@@ -39,16 +58,27 @@ export default function ConnectPage() {
   const [fetching, setFetching] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
+  const [connections, setConnections] = useState<Connection[]>([])
+  const [incomingRequests, setIncomingRequests] = useState<IncomingRequest[]>([])
+  const [pendingActions, setPendingActions] = useState<Set<string>>(new Set())
+  const [connectErrors, setConnectErrors] = useState<Record<string, string>>({})
+
   useEffect(() => {
     if (authLoading) return
-    connectApi.getUsers().then(({ data, error }) => {
-      if (error) {
-        setFetchError(error)
+    Promise.all([
+      connectApi.getUsers(),
+      connectionsApi.getAll(),
+      connectionsApi.getIncoming(),
+    ]).then(([usersRes, allConnsRes, incomingRes]) => {
+      if (usersRes.error) {
+        setFetchError(usersRes.error)
       } else {
-        const users = data ?? []
+        const users = usersRes.data ?? []
         setAllUsers(users)
         setResults(users)
       }
+      if (allConnsRes.data) setConnections(allConnsRes.data)
+      if (incomingRes.data) setIncomingRequests(incomingRes.data)
       setFetching(false)
     })
   }, [authLoading])
@@ -61,13 +91,9 @@ export default function ConnectPage() {
 
   function handleSearch() {
     let filtered = allUsers
-    if (selectedPosition) {
-      filtered = filtered.filter(u => u.position === selectedPosition)
-    }
+    if (selectedPosition) filtered = filtered.filter(u => u.position === selectedPosition)
     if (selectedSkills.length > 0) {
-      filtered = filtered.filter(u =>
-        selectedSkills.some(s => u.skills?.includes(s))
-      )
+      filtered = filtered.filter(u => selectedSkills.some(s => u.skills?.includes(s)))
     }
     setResults(filtered)
   }
@@ -76,6 +102,38 @@ export default function ConnectPage() {
     setSelectedPosition('')
     setSelectedSkills([])
     setResults(allUsers)
+  }
+
+  async function handleConnect(addresseeId: string) {
+    setPendingActions(prev => new Set(prev).add(addresseeId))
+    setConnectErrors(prev => { const e = { ...prev }; delete e[addresseeId]; return e })
+    const { data, error } = await connectionsApi.sendRequest(addresseeId)
+    if (!error && data) {
+      setConnections(prev => [...prev, data])
+    } else if (error) {
+      setConnectErrors(prev => ({ ...prev, [addresseeId]: error }))
+    }
+    setPendingActions(prev => { const s = new Set(prev); s.delete(addresseeId); return s })
+  }
+
+  async function handleAccept(connId: string) {
+    setPendingActions(prev => new Set(prev).add(connId))
+    const { data, error } = await connectionsApi.accept(connId)
+    if (!error && data) {
+      setConnections(prev => prev.map(c => c.id === connId ? { ...c, status: 'accepted' } : c))
+      setIncomingRequests(prev => prev.filter(r => r.id !== connId))
+    }
+    setPendingActions(prev => { const s = new Set(prev); s.delete(connId); return s })
+  }
+
+  async function handleDecline(connId: string) {
+    setPendingActions(prev => new Set(prev).add(connId))
+    const { error } = await connectionsApi.decline(connId)
+    if (!error) {
+      setConnections(prev => prev.filter(c => c.id !== connId))
+      setIncomingRequests(prev => prev.filter(r => r.id !== connId))
+    }
+    setPendingActions(prev => { const s = new Set(prev); s.delete(connId); return s })
   }
 
   return (
@@ -94,6 +152,49 @@ export default function ConnectPage() {
           a mentor who&apos;s been in your shoes.
         </p>
       </div>
+
+      {/* Incoming requests */}
+      {incomingRequests.length > 0 && (
+        <div className="rounded-2xl border border-blue-400/20 bg-blue-500/5 p-6 mb-8">
+          <h2 className="text-sm font-semibold text-blue-300 mb-4">
+            {incomingRequests.length === 1 ? '1 connection request' : `${incomingRequests.length} connection requests`}
+          </h2>
+          <div className="flex flex-col gap-3">
+            {incomingRequests.map((req, i) => {
+              const name = req.requester?.name ?? 'Someone'
+              return (
+                <div key={req.id} className="flex items-center gap-4">
+                  <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]} flex items-center justify-center shrink-0`}>
+                    <span className="text-white text-xs font-bold">{getInitials(name)}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-100 truncate">{name}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {[req.requester?.position, req.requester?.university].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleAccept(req.id)}
+                      disabled={pendingActions.has(req.id)}
+                      className="px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition-colors"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleDecline(req.id)}
+                      disabled={pendingActions.has(req.id)}
+                      className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-300 disabled:opacity-50 transition-colors"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Discord card */}
       <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-8 mb-8 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -207,6 +308,9 @@ export default function ConnectPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {results.map((user, i) => {
             const name = user.name ?? 'Anonymous'
+            const { status, connId } = getConnectionStatus(userId, user.id, connections)
+            const isActing = pendingActions.has(user.id) || (connId ? pendingActions.has(connId) : false)
+
             return (
               <div
                 key={user.id}
@@ -252,9 +356,45 @@ export default function ConnectPage() {
                 )}
 
                 {/* Connect button */}
-                <button className="mt-auto w-full py-2 text-sm font-semibold text-blue-300 border border-blue-400/20 rounded-lg bg-blue-500/5 hover:bg-blue-500/15 hover:border-blue-400/40 transition-colors">
-                  Connect
-                </button>
+                <div className="mt-auto flex flex-col gap-1.5">
+                  {connectErrors[user.id] && (
+                    <p className="text-xs text-red-400 text-center">{connectErrors[user.id]}</p>
+                  )}
+                  {status === 'connected' ? (
+                    <div className="w-full py-2 text-sm font-semibold text-center text-emerald-400 border border-emerald-400/20 rounded-lg bg-emerald-500/5">
+                      Connected
+                    </div>
+                  ) : status === 'sent_pending' ? (
+                    <div className="w-full py-2 text-sm font-semibold text-center text-slate-500 border border-white/8 rounded-lg bg-white/3">
+                      Request Sent
+                    </div>
+                  ) : status === 'received_pending' ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => connId && handleAccept(connId)}
+                        disabled={isActing}
+                        className="flex-1 py-2 text-sm font-semibold text-white border border-blue-400/30 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition-colors"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => connId && handleDecline(connId)}
+                        disabled={isActing}
+                        className="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-300 disabled:opacity-50 transition-colors"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleConnect(user.id)}
+                      disabled={isActing}
+                      className="w-full py-2 text-sm font-semibold text-blue-300 border border-blue-400/20 rounded-lg bg-blue-500/5 hover:bg-blue-500/15 hover:border-blue-400/40 disabled:opacity-50 transition-colors"
+                    >
+                      {isActing ? 'Sending…' : 'Connect'}
+                    </button>
+                  )}
+                </div>
               </div>
             )
           })}

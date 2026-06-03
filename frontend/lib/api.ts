@@ -38,14 +38,26 @@ async function apiFetch<T>(
 
 interface LoginResponse {
   session: { access_token: string }
-  user: unknown
+  user: { id: string }
   username: string
 }
 
 interface SignupResponse {
   session: { access_token: string } | null
-  user: unknown
+  user: { id: string }
   requiresConfirmation: boolean
+}
+
+export interface Connection {
+  id: string
+  requester_id: string
+  addressee_id: string
+  status: 'pending' | 'accepted' | 'declined'
+  created_at: string
+}
+
+export interface IncomingRequest extends Connection {
+  requester: import('../../backend/types/database.types').Profile
 }
 
 export const authApi = {
@@ -88,4 +100,29 @@ export const connectApi = {
     const query = qs.toString()
     return apiFetch<Profile[]>(`/api/connect${query ? `?${query}` : ''}`)
   },
+}
+
+// ── Connections ───────────────────────────────────────────────
+
+export const connectionsApi = {
+  getAll: () =>
+    apiFetch<Connection[]>('/api/connections'),
+
+  getIncoming: () =>
+    apiFetch<IncomingRequest[]>('/api/connections/requests'),
+
+  getCount: () =>
+    apiFetch<{ count: number }>('/api/connections/count'),
+
+  sendRequest: (addresseeId: string) =>
+    apiFetch<Connection>('/api/connections/request', {
+      method: 'POST',
+      body: JSON.stringify({ addresseeId }),
+    }),
+
+  accept: (id: string) =>
+    apiFetch<Connection>(`/api/connections/${id}/accept`, { method: 'POST' }),
+
+  decline: (id: string) =>
+    apiFetch<Connection>(`/api/connections/${id}/decline`, { method: 'POST' }),
 }

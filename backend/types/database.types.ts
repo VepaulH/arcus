@@ -84,6 +84,25 @@ export interface Database {
           updated_at?: string
         }
       }
+      connections: {
+        Row: {
+          id: string
+          requester_id: string
+          addressee_id: string
+          status: 'pending' | 'accepted' | 'declined'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          requester_id: string
+          addressee_id: string
+          status?: 'pending' | 'accepted' | 'declined'
+          created_at?: string
+        }
+        Update: {
+          status?: 'pending' | 'accepted' | 'declined'
+        }
+      }
     }
   }
 }
@@ -91,3 +110,15 @@ export interface Database {
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type ChatMessage = Database['public']['Tables']['chat_messages']['Row']
 export type RoadmapProgress = Database['public']['Tables']['roadmap_progress']['Row']
+
+export interface Connection {
+  id: string
+  requester_id: string
+  addressee_id: string
+  status: 'pending' | 'accepted' | 'declined'
+  created_at: string
+}
+
+export interface IncomingRequest extends Connection {
+  requester: Profile
+}

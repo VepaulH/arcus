@@ -1,10 +1,20 @@
 'use client'
 
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { connectionsApi } from '../../lib/api'
 
 export default function Navbar() {
   const { isLoggedIn, username, loading, logout } = useAuth()
+  const [requestCount, setRequestCount] = useState(0)
+
+  useEffect(() => {
+    if (!isLoggedIn) { setRequestCount(0); return }
+    connectionsApi.getIncoming().then(({ data }) => {
+      setRequestCount(data?.length ?? 0)
+    })
+  }, [isLoggedIn])
 
   return (
     <nav className="sticky top-0 z-50 bg-slate-900/75 backdrop-blur-md border-b border-white/8 px-6 py-4">
@@ -32,12 +42,17 @@ export default function Navbar() {
 
               <Link
                 href="/profile"
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                className="relative flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
               >
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                <div className="relative w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
                   <span className="text-white text-xs font-bold">
                     {username.charAt(0).toUpperCase()}
                   </span>
+                  {requestCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border border-slate-900 flex items-center justify-center text-white text-[9px] font-bold leading-none">
+                      {requestCount > 9 ? '9+' : requestCount}
+                    </span>
+                  )}
                 </div>
                 <span className="text-sm text-slate-200 font-medium">{username}</span>
               </Link>

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { profileApi } from '../../lib/api'
+import { profileApi, connectionsApi } from '../../lib/api'
+import type { IncomingRequest } from '../../lib/api'
 
 const SKILLS = [
   'Frontend', 'Backend', 'Mobile', 'AWS', 'DevOps',
@@ -81,6 +82,9 @@ export default function ProfilePage() {
   const [fetching, setFetching] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [connectionCount, setConnectionCount] = useState(0)
+  const [incomingRequests, setIncomingRequests] = useState<IncomingRequest[]>([])
+  const [pendingActions, setPendingActions] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (authLoading) return
@@ -89,24 +93,49 @@ export default function ProfilePage() {
       return
     }
 
-    profileApi.get().then(({ data, error }) => {
-      if (data && !error) {
+    Promise.all([
+      profileApi.get(),
+      connectionsApi.getCount(),
+      connectionsApi.getIncoming(),
+    ]).then(([profileRes, countRes, incomingRes]) => {
+      if (profileRes.data && !profileRes.error) {
         const loaded: ProfileData = {
-          name: data.name ?? username ?? '',
-          email: data.email ?? '',
-          university: data.university ?? '',
-          bio: data.bio ?? '',
-          position: data.position ?? '',
-          skills: data.skills ?? [],
-          startupStage: data.startup_stage ?? '',
-          experience: data.experience ?? '',
+          name: profileRes.data.name ?? username ?? '',
+          email: profileRes.data.email ?? '',
+          university: profileRes.data.university ?? '',
+          bio: profileRes.data.bio ?? '',
+          position: profileRes.data.position ?? '',
+          skills: profileRes.data.skills ?? [],
+          startupStage: profileRes.data.startup_stage ?? '',
+          experience: profileRes.data.experience ?? '',
         }
         setProfile(loaded)
         setDraft(loaded)
       }
+      if (countRes.data) setConnectionCount(countRes.data.count)
+      if (incomingRes.data) setIncomingRequests(incomingRes.data)
       setFetching(false)
     })
   }, [authLoading, isLoggedIn, username])
+
+  async function handleAccept(connId: string) {
+    setPendingActions(prev => new Set(prev).add(connId))
+    const { error } = await connectionsApi.accept(connId)
+    if (!error) {
+      setIncomingRequests(prev => prev.filter(r => r.id !== connId))
+      setConnectionCount(prev => prev + 1)
+    }
+    setPendingActions(prev => { const s = new Set(prev); s.delete(connId); return s })
+  }
+
+  async function handleDecline(connId: string) {
+    setPendingActions(prev => new Set(prev).add(connId))
+    const { error } = await connectionsApi.decline(connId)
+    if (!error) {
+      setIncomingRequests(prev => prev.filter(r => r.id !== connId))
+    }
+    setPendingActions(prev => { const s = new Set(prev); s.delete(connId); return s })
+  }
 
   function toggleSkill(skill: string) {
     setDraft(prev => ({
@@ -206,10 +235,55 @@ export default function ProfilePage() {
         )}
       </div>
 
+      {/* Incoming connection requests */}
+      {incomingRequests.length > 0 && (
+        <div className="rounded-2xl border border-blue-400/20 bg-blue-500/5 p-6 mb-6">
+          <h2 className="text-sm font-semibold text-blue-300 mb-4">
+            {incomingRequests.length === 1 ? '1 connection request' : `${incomingRequests.length} connection requests`}
+          </h2>
+          <div className="flex flex-col gap-3">
+            {incomingRequests.map(req => {
+              const name = req.requester?.name ?? 'Someone'
+              const initial = name.charAt(0).toUpperCase()
+              const acting = pendingActions.has(req.id)
+              return (
+                <div key={req.id} className="flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0">
+                    <span className="text-white text-xs font-bold">{initial}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-100 truncate">{name}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {[req.requester?.position, req.requester?.university].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleAccept(req.id)}
+                      disabled={acting}
+                      className="px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition-colors"
+                    >
+                      {acting ? '…' : 'Accept'}
+                    </button>
+                    <button
+                      onClick={() => handleDecline(req.id)}
+                      disabled={acting}
+                      className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-300 disabled:opacity-50 transition-colors"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6 text-center">
-          <p className="text-3xl font-bold text-slate-100 mb-1">0</p>
+          <p className="text-3xl font-bold text-slate-100 mb-1">{connectionCount}</p>
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Connections</p>
         </div>
         <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6 text-center">
