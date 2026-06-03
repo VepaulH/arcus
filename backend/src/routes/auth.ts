@@ -55,8 +55,7 @@ router.post('/login', async (req, res) => {
 })
 
 router.post('/logout', requireAuth, async (req: AuthRequest, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '') ?? ''
-  await supabase.auth.admin.signOut(token)
+  await supabase.auth.admin.signOut(req.userId!)
   res.json({ success: true })
 })
 

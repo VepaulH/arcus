@@ -23,7 +23,7 @@ export default function AuthForm({ initialMode }: { initialMode: 'login' | 'sign
   const router = useRouter()
 
   useEffect(() => {
-    if (isLoggedIn) router.replace('/')
+    if (isLoggedIn) router.replace('/dashboard')
   }, [isLoggedIn, router])
 
   function switchMode(next: 'login' | 'signup') {
@@ -48,18 +48,19 @@ export default function AuthForm({ initialMode }: { initialMode: 'login' | 'sign
       const { error } = await login(email, password)
       if (error) {
         setError(error)
-      } else {
-        router.push('/dashboard')
       }
+      // useEffect handles redirect on success
     } else {
+      localStorage.setItem('arcus_needs_onboarding', 'true')
       const { error, requiresConfirmation } = await signup(email, password, name)
       if (error) {
+        localStorage.removeItem('arcus_needs_onboarding')
         setError(error)
       } else if (requiresConfirmation) {
+        localStorage.removeItem('arcus_needs_onboarding')
         setInfo('Account created! Check your email to confirm before logging in.')
-      } else {
-        router.push('/dashboard')
       }
+      // useEffect handles redirect on success
     }
 
     setSubmitting(false)

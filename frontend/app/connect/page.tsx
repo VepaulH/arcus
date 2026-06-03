@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { connectApi } from '../../lib/api'
 import type { Profile } from '../../../backend/types/database.types'
 
-const POSITIONS = ['Co-founder', 'Employee', 'Mentor', 'Advisor', 'Investor']
+const POSITIONS = ['Founder', 'Co-founder', 'Employee', 'Mentor', 'Advisor', 'Investor']
 
 const SKILLS = [
   'Frontend', 'Backend', 'Mobile', 'AWS', 'DevOps',

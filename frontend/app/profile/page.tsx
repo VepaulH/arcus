@@ -10,7 +10,7 @@ const SKILLS = [
   'Marketing', 'Sales', 'Growth', 'Fundraising', 'Strategy',
 ]
 
-const POSITIONS = ['Co-founder', 'Employee', 'Mentor', 'Advisor', 'Investor']
+const POSITIONS = ['Founder', 'Co-founder', 'Employee', 'Mentor', 'Advisor', 'Investor']
 
 const STARTUP_STAGES = ['Ideation', 'Validation', 'Building', 'Launch', 'Growth']
 

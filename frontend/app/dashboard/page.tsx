@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -132,6 +133,7 @@ const OPPORTUNITIES: Opportunity[] = [
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function getGreeting(): string {
+  if (typeof window === 'undefined') return 'Welcome'
   const h = new Date().getHours()
   if (h < 12) return 'Good morning'
   if (h < 17) return 'Good afternoon'
@@ -182,7 +184,15 @@ function ChevronRight() {
 
 export default function DashboardPage() {
   const { username } = useAuth()
+  const router = useRouter()
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
+  const [showWelcome, setShowWelcome] = useState(false)
+
+  useEffect(() => {
+    if (localStorage.getItem('arcus_needs_onboarding') === 'true') {
+      setShowWelcome(true)
+    }
+  }, [])
 
   function toggleTask(id: number) {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))
@@ -195,6 +205,41 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
+
+      {/* ── Welcome / onboarding modal ───────────────────────────────────── */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0e1728] p-8 shadow-2xl">
+            <div className="flex justify-center mb-6">
+              <div className="inline-block px-3 py-1 text-xs font-semibold tracking-widest text-blue-300 uppercase border border-blue-400/20 rounded-full bg-blue-400/5">
+                Welcome to Arcus
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-100 text-center mb-3 leading-snug">
+              Start your journey with a quick survey
+            </h2>
+            <p className="text-sm text-slate-500 text-center mb-8 leading-relaxed">
+              Answer 10 short questions so we can personalize your roadmap,
+              tasks, and goals from day one. Takes about 2 minutes.
+            </p>
+            <button
+              onClick={() => router.push('/onboarding')}
+              className="w-full py-3 text-sm font-semibold text-white rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 transition-all shadow-lg shadow-blue-500/20 mb-3"
+            >
+              Start the survey
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem('arcus_needs_onboarding')
+                setShowWelcome(false)
+              }}
+              className="w-full py-2.5 text-sm font-medium text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-8">

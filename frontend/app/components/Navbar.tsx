@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useAuth } from '../context/AuthContext'
 
 export default function Navbar() {
-  const { isLoggedIn, username, logout } = useAuth()
+  const { isLoggedIn, username, loading, logout } = useAuth()
 
   return (
     <nav className="sticky top-0 z-50 bg-slate-900/75 backdrop-blur-md border-b border-white/8 px-6 py-4">
@@ -17,7 +17,7 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {isLoggedIn ? (
+          {loading ? null : isLoggedIn ? (
             <>
               <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-100 transition-colors rounded-md hover:bg-white/5">
                 Dashboard

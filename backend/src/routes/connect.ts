@@ -2,13 +2,13 @@ import { Router } from 'express'
 import { supabase } from '../lib/supabase'
 import { requireAuth } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
+import type { Profile } from '../../types/database.types'
 
 const router = Router()
 
 router.get('/', requireAuth, async (req: AuthRequest, res) => {
-  const { position, skills } = req.query as { position?: string; skills?: string }
+  const { position, skills, search } = req.query as { position?: string; skills?: string; search?: string }
 
-  // Fetch all profiles except the requesting user, excluding rows with no name
   let query = supabase
     .from('profiles')
     .select('*')
@@ -19,6 +19,10 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
     query = query.eq('position', position)
   }
 
+  if (search) {
+    query = query.ilike('name', `%${search}%`)
+  }
+
   const { data, error } = await query
 
   if (error) {
@@ -26,9 +30,8 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
     return
   }
 
-  let results = data ?? []
+  let results: Profile[] = data ?? []
 
-  // Skill filter is applied in-process (array overlap)
   if (skills) {
     const skillList = skills.split(',').map(s => s.trim()).filter(Boolean)
     if (skillList.length > 0) {
