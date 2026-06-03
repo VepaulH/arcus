@@ -1,6 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
+import { connectApi } from '../../lib/api'
+import type { Profile } from '../../../backend/types/database.types'
 
 const POSITIONS = ['Co-founder', 'Employee', 'Mentor', 'Advisor', 'Investor']
 
@@ -10,67 +13,6 @@ const SKILLS = [
   'Marketing', 'Sales', 'Growth', 'Fundraising', 'Strategy',
 ]
 
-interface User {
-  id: number
-  name: string
-  initials: string
-  position: string
-  skills: string[]
-  university: string
-  bio: string
-}
-
-const MOCK_USERS: User[] = [
-  {
-    id: 1, name: 'Alex Chen', initials: 'AC', position: 'Co-founder',
-    skills: ['Backend', 'AWS', 'Python'], university: 'MIT',
-    bio: 'Full-stack engineer looking to build in fintech.',
-  },
-  {
-    id: 2, name: 'Priya Sharma', initials: 'PS', position: 'Co-founder',
-    skills: ['Frontend', 'Product Design', 'React'], university: 'Stanford',
-    bio: 'Product designer with 2 years of startup experience.',
-  },
-  {
-    id: 3, name: 'Jordan Lee', initials: 'JL', position: 'Employee',
-    skills: ['Backend', 'Go', 'DevOps'], university: 'Carnegie Mellon',
-    bio: 'Backend engineer passionate about developer tools.',
-  },
-  {
-    id: 4, name: 'Maya Rodriguez', initials: 'MR', position: 'Mentor',
-    skills: ['Marketing', 'Growth', 'Sales'], university: 'Harvard Business School',
-    bio: 'Former founder, now advising early-stage startups.',
-  },
-  {
-    id: 5, name: 'Sam Park', initials: 'SP', position: 'Co-founder',
-    skills: ['Frontend', 'Mobile', 'React'], university: 'UC Berkeley',
-    bio: 'Mobile developer focused on consumer apps.',
-  },
-  {
-    id: 6, name: 'Taylor Kim', initials: 'TK', position: 'Advisor',
-    skills: ['Fundraising', 'Strategy', 'Growth'], university: 'Wharton',
-    bio: 'Angel investor, previously raised a $5M seed round.',
-  },
-  {
-    id: 7, name: 'Riley Johnson', initials: 'RJ', position: 'Co-founder',
-    skills: ['ML / AI', 'Python', 'Backend'], university: 'Georgia Tech',
-    bio: 'ML researcher looking to commercialize AI products.',
-  },
-  {
-    id: 8, name: 'Morgan Davis', initials: 'MD', position: 'Employee',
-    skills: ['Frontend', 'React', 'Product Design'], university: 'University of Michigan',
-    bio: 'Frontend dev with a strong eye for great UX.',
-  },
-]
-
-function filterUsers(position: string, skills: string[]): User[] {
-  return MOCK_USERS.filter(user => {
-    const posMatch = !position || user.position === position
-    const skillMatch = skills.length === 0 || skills.some(s => user.skills.includes(s))
-    return posMatch && skillMatch
-  })
-}
-
 const AVATAR_GRADIENTS = [
   'from-blue-500 to-blue-700',
   'from-indigo-500 to-blue-600',
@@ -78,10 +20,38 @@ const AVATAR_GRADIENTS = [
   'from-blue-400 to-indigo-600',
 ]
 
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map(n => n[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
 export default function ConnectPage() {
+  const { loading: authLoading } = useAuth()
+
+  const [allUsers, setAllUsers] = useState<Profile[]>([])
+  const [results, setResults] = useState<Profile[]>([])
   const [selectedPosition, setSelectedPosition] = useState('')
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
-  const [results, setResults] = useState<User[]>(MOCK_USERS)
+  const [fetching, setFetching] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (authLoading) return
+    connectApi.getUsers().then(({ data, error }) => {
+      if (error) {
+        setFetchError(error)
+      } else {
+        const users = data ?? []
+        setAllUsers(users)
+        setResults(users)
+      }
+      setFetching(false)
+    })
+  }, [authLoading])
 
   function toggleSkill(skill: string) {
     setSelectedSkills(prev =>
@@ -90,13 +60,22 @@ export default function ConnectPage() {
   }
 
   function handleSearch() {
-    setResults(filterUsers(selectedPosition, selectedSkills))
+    let filtered = allUsers
+    if (selectedPosition) {
+      filtered = filtered.filter(u => u.position === selectedPosition)
+    }
+    if (selectedSkills.length > 0) {
+      filtered = filtered.filter(u =>
+        selectedSkills.some(s => u.skills?.includes(s))
+      )
+    }
+    setResults(filtered)
   }
 
   function handleReset() {
     setSelectedPosition('')
     setSelectedSkills([])
-    setResults(MOCK_USERS)
+    setResults(allUsers)
   }
 
   return (
@@ -142,7 +121,7 @@ export default function ConnectPage() {
         </a>
       </div>
 
-      {/* Matchmaking */}
+      {/* Matchmaking filters */}
       <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-8 mb-8">
         <h2 className="text-lg font-semibold text-slate-100 mb-1">Find Your Match</h2>
         <p className="text-slate-500 text-sm mb-8">
@@ -210,65 +189,84 @@ export default function ConnectPage() {
             </button>
           )}
           <span className="text-xs text-slate-600 ml-auto">
-            {results.length} {results.length === 1 ? 'person' : 'people'} found
+            {fetching ? 'Loading…' : `${results.length} ${results.length === 1 ? 'person' : 'people'} found`}
           </span>
         </div>
       </div>
 
       {/* Results */}
-      {results.length > 0 ? (
+      {fetchError ? (
+        <div className="rounded-2xl border border-red-400/20 bg-red-500/5 p-16 text-center">
+          <p className="text-red-400 text-sm">{fetchError}</p>
+        </div>
+      ) : fetching ? (
+        <div className="rounded-2xl border border-white/8 bg-white/5 p-16 text-center">
+          <p className="text-slate-500 text-sm">Loading members…</p>
+        </div>
+      ) : results.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {results.map((user, i) => (
-            <div
-              key={user.id}
-              className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6 flex flex-col gap-4 hover:bg-white/8 transition-colors"
-            >
-              {/* Header */}
-              <div className="flex items-center gap-3">
-                <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]} flex items-center justify-center shrink-0`}>
-                  <span className="text-white text-sm font-bold">{user.initials}</span>
+          {results.map((user, i) => {
+            const name = user.name ?? 'Anonymous'
+            return (
+              <div
+                key={user.id}
+                className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6 flex flex-col gap-4 hover:bg-white/8 transition-colors"
+              >
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                  <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]} flex items-center justify-center shrink-0`}>
+                    <span className="text-white text-sm font-bold">{getInitials(name)}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-100">{name}</p>
+                    <p className="text-xs text-slate-500">{user.university ?? ''}</p>
+                  </div>
+                  {user.position && (
+                    <span className="ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-400/20 text-blue-300">
+                      {user.position}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-100">{user.name}</p>
-                  <p className="text-xs text-slate-500">{user.university}</p>
-                </div>
-                <span className="ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-400/20 text-blue-300">
-                  {user.position}
-                </span>
+
+                {/* Bio */}
+                {user.bio && (
+                  <p className="text-xs text-slate-500 leading-relaxed">{user.bio}</p>
+                )}
+
+                {/* Skills */}
+                {user.skills && user.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {user.skills.map(skill => (
+                      <span
+                        key={skill}
+                        className={`text-xs px-2 py-0.5 rounded-full border ${
+                          selectedSkills.includes(skill)
+                            ? 'bg-blue-600/20 border-blue-400/30 text-blue-300'
+                            : 'bg-white/5 border-white/8 text-slate-500'
+                        }`}
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Connect button */}
+                <button className="mt-auto w-full py-2 text-sm font-semibold text-blue-300 border border-blue-400/20 rounded-lg bg-blue-500/5 hover:bg-blue-500/15 hover:border-blue-400/40 transition-colors">
+                  Connect
+                </button>
               </div>
-
-              {/* Bio */}
-              <p className="text-xs text-slate-500 leading-relaxed">{user.bio}</p>
-
-              {/* Skills */}
-              <div className="flex flex-wrap gap-1.5">
-                {user.skills.map(skill => (
-                  <span
-                    key={skill}
-                    className={`text-xs px-2 py-0.5 rounded-full border ${
-                      selectedSkills.includes(skill)
-                        ? 'bg-blue-600/20 border-blue-400/30 text-blue-300'
-                        : 'bg-white/5 border-white/8 text-slate-500'
-                    }`}
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-
-              {/* Connect button */}
-              <button className="mt-auto w-full py-2 text-sm font-semibold text-blue-300 border border-blue-400/20 rounded-lg bg-blue-500/5 hover:bg-blue-500/15 hover:border-blue-400/40 transition-colors">
-                Connect
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ) : (
         <div className="rounded-2xl border border-white/8 bg-white/5 p-16 text-center">
-          <p className="text-slate-500 text-sm">No matches found for the selected filters.</p>
-          <button onClick={handleReset} className="mt-4 text-blue-400 text-sm hover:underline">
-            Clear filters
-          </button>
+          <p className="text-slate-500 text-sm">No members found for the selected filters.</p>
+          {(selectedPosition || selectedSkills.length > 0) && (
+            <button onClick={handleReset} className="mt-4 text-blue-400 text-sm hover:underline">
+              Clear filters
+            </button>
+          )}
         </div>
       )}
 

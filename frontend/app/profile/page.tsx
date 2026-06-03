@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { profileApi } from '../../lib/api'
 
 const SKILLS = [
   'Frontend', 'Backend', 'Mobile', 'AWS', 'DevOps',
@@ -24,6 +25,11 @@ interface ProfileData {
   skills: string[]
   startupStage: string
   experience: string
+}
+
+const EMPTY_PROFILE: ProfileData = {
+  name: '', email: '', university: '', bio: '',
+  position: '', skills: [], startupStage: '', experience: '',
 }
 
 function EditableField({
@@ -67,20 +73,40 @@ function EditableField({
 }
 
 export default function ProfilePage() {
-  const { username } = useAuth()
+  const { username, loading: authLoading, isLoggedIn } = useAuth()
 
-  const [profile, setProfile] = useState<ProfileData>({
-    name: username || '',
-    email: '',
-    university: '',
-    bio: '',
-    position: '',
-    skills: [],
-    startupStage: '',
-    experience: '',
-  })
-  const [draft, setDraft] = useState<ProfileData>(profile)
+  const [profile, setProfile] = useState<ProfileData>(EMPTY_PROFILE)
+  const [draft, setDraft] = useState<ProfileData>(EMPTY_PROFILE)
   const [editing, setEditing] = useState(false)
+  const [fetching, setFetching] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (authLoading) return
+    if (!isLoggedIn) {
+      setFetching(false)
+      return
+    }
+
+    profileApi.get().then(({ data, error }) => {
+      if (data && !error) {
+        const loaded: ProfileData = {
+          name: data.name ?? username ?? '',
+          email: data.email ?? '',
+          university: data.university ?? '',
+          bio: data.bio ?? '',
+          position: data.position ?? '',
+          skills: data.skills ?? [],
+          startupStage: data.startup_stage ?? '',
+          experience: data.experience ?? '',
+        }
+        setProfile(loaded)
+        setDraft(loaded)
+      }
+      setFetching(false)
+    })
+  }, [authLoading, isLoggedIn, username])
 
   function toggleSkill(skill: string) {
     setDraft(prev => ({
@@ -91,14 +117,32 @@ export default function ProfilePage() {
     }))
   }
 
-  function save() {
-    setProfile(draft)
-    setEditing(false)
+  async function save() {
+    setSaving(true)
+    setSaveError(null)
+    const { error } = await profileApi.update({
+      name: draft.name,
+      email: draft.email,
+      university: draft.university,
+      bio: draft.bio,
+      position: draft.position,
+      skills: draft.skills,
+      startup_stage: draft.startupStage,
+      experience: draft.experience,
+    })
+    if (error) {
+      setSaveError(error)
+    } else {
+      setProfile(draft)
+      setEditing(false)
+    }
+    setSaving(false)
   }
 
   function cancel() {
     setDraft(profile)
     setEditing(false)
+    setSaveError(null)
   }
 
   function startEdit() {
@@ -107,6 +151,14 @@ export default function ProfilePage() {
   }
 
   const initial = (profile.name || username || '?').charAt(0).toUpperCase()
+
+  if (fetching) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-16 flex items-center justify-center min-h-[50vh]">
+        <p className="text-slate-500 text-sm">Loading profile…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-16">
@@ -131,13 +183,14 @@ export default function ProfilePage() {
           </div>
           <button
             onClick={editing ? save : startEdit}
-            className={`shrink-0 px-5 py-2 text-sm font-semibold rounded-lg transition-all ${
+            disabled={saving}
+            className={`shrink-0 px-5 py-2 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 ${
               editing
                 ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white shadow-sm shadow-blue-500/20'
                 : 'bg-white/8 border border-white/10 text-slate-300 hover:bg-white/12 hover:text-slate-100'
             }`}
           >
-            {editing ? 'Save changes' : 'Edit profile'}
+            {saving ? 'Saving…' : editing ? 'Save changes' : 'Edit profile'}
           </button>
           {editing && (
             <button
@@ -148,6 +201,9 @@ export default function ProfilePage() {
             </button>
           )}
         </div>
+        {saveError && (
+          <p className="mt-4 text-sm text-red-400">{saveError}</p>
+        )}
       </div>
 
       {/* Stats row */}
@@ -177,7 +233,7 @@ export default function ProfilePage() {
             <p className="text-xs text-slate-500">Shown to others in Connect search results.</p>
           </div>
 
-          {/* Looking for / position */}
+          {/* Role / position */}
           <div className="flex flex-col gap-3">
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</label>
             {editing ? (
