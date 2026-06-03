@@ -32,7 +32,7 @@ export default function AuthForm({ initialMode }: { initialMode: 'login' | 'sign
     setInfo(null)
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault()
     setError(null)
     setInfo(null)
@@ -49,7 +49,7 @@ export default function AuthForm({ initialMode }: { initialMode: 'login' | 'sign
       if (error) {
         setError(error)
       } else {
-        router.push('/')
+        router.push('/dashboard')
       }
     } else {
       const { error, requiresConfirmation } = await signup(email, password, name)
@@ -58,7 +58,7 @@ export default function AuthForm({ initialMode }: { initialMode: 'login' | 'sign
       } else if (requiresConfirmation) {
         setInfo('Account created! Check your email to confirm before logging in.')
       } else {
-        router.push('/')
+        router.push('/dashboard')
       }
     }
 

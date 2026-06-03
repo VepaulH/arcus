@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { authApi } from '../../lib/api'
 
 interface AuthContextType {
   isLoggedIn: boolean
@@ -27,51 +26,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('arcus_token')
-    const storedUsername = localStorage.getItem('arcus_username')
-    if (token) {
-      setIsLoggedIn(true)
-      setUsername(storedUsername ?? '')
+    const stored = localStorage.getItem('arcus_auth')
+    if (stored) {
+      const parsed = JSON.parse(stored) as { isLoggedIn: boolean; username: string }
+      setIsLoggedIn(parsed.isLoggedIn)
+      setUsername(parsed.username)
     }
     setLoading(false)
   }, [])
 
-  const login = async (email: string, password: string): Promise<{ error: string | null }> => {
-    const { data, error } = await authApi.login(email, password)
-    if (error || !data) return { error: error ?? 'Login failed' }
-
-    localStorage.setItem('arcus_token', data.session.access_token)
-    localStorage.setItem('arcus_username', data.username)
+  const login = async (email: string, _password: string): Promise<{ error: string | null }> => {
+    const name = email.split('@')[0]
     setIsLoggedIn(true)
-    setUsername(data.username)
+    setUsername(name)
+    localStorage.setItem('arcus_auth', JSON.stringify({ isLoggedIn: true, username: name }))
     return { error: null }
   }
 
-  const signup = async (
-    email: string,
-    password: string,
-    name: string
-  ): Promise<{ error: string | null; requiresConfirmation?: boolean }> => {
-    const { data, error } = await authApi.signup(email, password, name)
-    if (error || !data) return { error: error ?? 'Signup failed' }
-
-    if (data.session) {
-      const displayName = name || email.split('@')[0]
-      localStorage.setItem('arcus_token', data.session.access_token)
-      localStorage.setItem('arcus_username', displayName)
-      setIsLoggedIn(true)
-      setUsername(displayName)
-    }
-
-    return { error: null, requiresConfirmation: data.requiresConfirmation }
+  const signup = async (email: string, _password: string, name: string): Promise<{ error: string | null }> => {
+    const displayName = name || email.split('@')[0]
+    setIsLoggedIn(true)
+    setUsername(displayName)
+    localStorage.setItem('arcus_auth', JSON.stringify({ isLoggedIn: true, username: displayName }))
+    return { error: null }
   }
 
   const logout = async () => {
-    await authApi.logout()
-    localStorage.removeItem('arcus_token')
-    localStorage.removeItem('arcus_username')
     setIsLoggedIn(false)
     setUsername('')
+    localStorage.removeItem('arcus_auth')
   }
 
   return (

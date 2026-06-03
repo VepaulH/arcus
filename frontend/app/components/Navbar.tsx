@@ -19,8 +19,8 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           {isLoggedIn ? (
             <>
-              <Link href="/arcus-ai" className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-100 transition-colors rounded-md hover:bg-white/5">
-                arcus.ai
+              <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-100 transition-colors rounded-md hover:bg-white/5">
+                Dashboard
               </Link>
               <Link href="/roadmap" className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-100 transition-colors rounded-md hover:bg-white/5">
                 Roadmap
