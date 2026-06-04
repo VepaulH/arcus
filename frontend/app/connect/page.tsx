@@ -126,6 +126,15 @@ export default function ConnectPage() {
     setPendingActions(prev => { const s = new Set(prev); s.delete(connId); return s })
   }
 
+  async function handleDisconnect(connId: string) {
+    setPendingActions(prev => new Set(prev).add(connId))
+    const { error } = await connectionsApi.disconnect(connId)
+    if (!error) {
+      setConnections(prev => prev.filter(c => c.id !== connId))
+    }
+    setPendingActions(prev => { const s = new Set(prev); s.delete(connId); return s })
+  }
+
   async function handleDecline(connId: string) {
     setPendingActions(prev => new Set(prev).add(connId))
     const { error } = await connectionsApi.decline(connId)
@@ -361,9 +370,18 @@ export default function ConnectPage() {
                     <p className="text-xs text-red-400 text-center">{connectErrors[user.id]}</p>
                   )}
                   {status === 'connected' ? (
-                    <div className="w-full py-2 text-sm font-semibold text-center text-emerald-400 border border-emerald-400/20 rounded-lg bg-emerald-500/5">
-                      Connected
-                    </div>
+                    <button
+                      onClick={() => connId && handleDisconnect(connId)}
+                      disabled={isActing}
+                      className="group w-full py-2 text-sm font-semibold text-emerald-400 border border-emerald-400/20 rounded-lg bg-emerald-500/5 hover:bg-red-500/10 hover:border-red-400/30 hover:text-red-400 disabled:opacity-50 transition-colors"
+                    >
+                      {isActing ? '…' : (
+                        <>
+                          <span className="group-hover:hidden">Connected</span>
+                          <span className="hidden group-hover:inline">Disconnect</span>
+                        </>
+                      )}
+                    </button>
                   ) : status === 'sent_pending' ? (
                     <div className="w-full py-2 text-sm font-semibold text-center text-slate-500 border border-white/8 rounded-lg bg-white/3">
                       Request Sent

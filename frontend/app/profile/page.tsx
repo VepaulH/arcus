@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useAuth } from '../context/AuthContext'
 import { profileApi, connectionsApi } from '../../lib/api'
-import type { IncomingRequest } from '../../lib/api'
+import type { IncomingRequest, AcceptedOutgoing } from '../../lib/api'
 
 const SKILLS = [
   'Frontend', 'Backend', 'Mobile', 'AWS', 'DevOps',
@@ -85,6 +86,13 @@ export default function ProfilePage() {
   const [connectionCount, setConnectionCount] = useState(0)
   const [incomingRequests, setIncomingRequests] = useState<IncomingRequest[]>([])
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set())
+  const [acceptedNotifications, setAcceptedNotifications] = useState<AcceptedOutgoing[]>([])
+
+  function dismissNotification(connId: string) {
+    const dismissed: string[] = JSON.parse(localStorage.getItem('arcus_dismissed_notifs') ?? '[]')
+    localStorage.setItem('arcus_dismissed_notifs', JSON.stringify([...dismissed, connId]))
+    setAcceptedNotifications(prev => prev.filter(n => n.id !== connId))
+  }
 
   useEffect(() => {
     if (authLoading) return
@@ -97,7 +105,8 @@ export default function ProfilePage() {
       profileApi.get(),
       connectionsApi.getCount(),
       connectionsApi.getIncoming(),
-    ]).then(([profileRes, countRes, incomingRes]) => {
+      connectionsApi.getAcceptedOutgoing(),
+    ]).then(([profileRes, countRes, incomingRes, acceptedRes]) => {
       if (profileRes.data && !profileRes.error) {
         const loaded: ProfileData = {
           name: profileRes.data.name ?? username ?? '',
@@ -114,6 +123,10 @@ export default function ProfilePage() {
       }
       if (countRes.data) setConnectionCount(countRes.data.count)
       if (incomingRes.data) setIncomingRequests(incomingRes.data)
+      if (acceptedRes.data) {
+        const dismissed: string[] = JSON.parse(localStorage.getItem('arcus_dismissed_notifs') ?? '[]')
+        setAcceptedNotifications(acceptedRes.data.filter(n => !dismissed.includes(n.id)))
+      }
       setFetching(false)
     })
   }, [authLoading, isLoggedIn, username])
@@ -235,6 +248,34 @@ export default function ProfilePage() {
         )}
       </div>
 
+      {/* Accepted connection notifications */}
+      {acceptedNotifications.length > 0 && (
+        <div className="flex flex-col gap-2 mb-6">
+          {acceptedNotifications.map(n => (
+            <div key={n.id} className="flex items-center justify-between gap-4 rounded-xl border border-emerald-400/20 bg-emerald-500/5 px-5 py-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shrink-0">
+                  <span className="text-white text-xs font-bold">
+                    {(n.acceptee?.name ?? '?').charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-200">
+                  <span className="font-semibold">{n.acceptee?.name ?? 'Someone'}</span>
+                  <span className="text-slate-400"> accepted your connection request</span>
+                </p>
+              </div>
+              <button
+                onClick={() => dismissNotification(n.id)}
+                className="text-slate-600 hover:text-slate-400 transition-colors text-lg leading-none shrink-0"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Incoming connection requests */}
       {incomingRequests.length > 0 && (
         <div className="rounded-2xl border border-blue-400/20 bg-blue-500/5 p-6 mb-6">
@@ -282,10 +323,13 @@ export default function ProfilePage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6 text-center">
+        <Link
+          href="/connections"
+          className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6 text-center hover:bg-white/8 hover:border-white/15 transition-colors block"
+        >
           <p className="text-3xl font-bold text-slate-100 mb-1">{connectionCount}</p>
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Connections</p>
-        </div>
+        </Link>
         <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6 text-center">
           <p className="text-3xl font-bold text-slate-100 mb-1">0</p>
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Profile Views</p>

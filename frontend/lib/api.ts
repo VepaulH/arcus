@@ -60,6 +60,16 @@ export interface IncomingRequest extends Connection {
   requester: import('../../backend/types/database.types').Profile
 }
 
+export interface AcceptedOutgoing extends Connection {
+  acceptee: import('../../backend/types/database.types').Profile
+}
+
+export interface ConnectedUser {
+  connection_id: string
+  connected_at: string
+  profile: import('../../backend/types/database.types').Profile
+}
+
 export const authApi = {
   login: (email: string, password: string) =>
     apiFetch<LoginResponse>('/api/auth/login', {
@@ -125,4 +135,13 @@ export const connectionsApi = {
 
   decline: (id: string) =>
     apiFetch<Connection>(`/api/connections/${id}/decline`, { method: 'POST' }),
+
+  getAcceptedOutgoing: () =>
+    apiFetch<AcceptedOutgoing[]>('/api/connections/accepted-outgoing'),
+
+  disconnect: (id: string) =>
+    apiFetch<{ success: boolean }>(`/api/connections/${id}`, { method: 'DELETE' }),
+
+  getList: () =>
+    apiFetch<ConnectedUser[]>('/api/connections/list'),
 }
