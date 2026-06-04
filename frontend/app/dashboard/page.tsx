@@ -186,8 +186,7 @@ const OPPORTUNITIES: Opportunity[] = [
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getGreeting(): string {
-  if (typeof window === 'undefined') return 'Welcome'
+function computeGreeting(): string {
   const h = new Date().getHours()
   if (h < 12) return 'Good morning'
   if (h < 17) return 'Good afternoon'
@@ -235,6 +234,7 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
   const [showWelcome, setShowWelcome] = useState(false)
   const [currentStageIndex, setCurrentStageIndex] = useState(0)
+  const [greeting, setGreeting] = useState('')
   const [metrics, setMetrics] = useState<Metric[]>([
     { label: 'Revenue',     value: '—', delta: null },
     { label: 'Team',        value: '—', delta: null },
@@ -248,6 +248,7 @@ export default function DashboardPage() {
   ])
 
   useEffect(() => {
+    setGreeting(computeGreeting())
     if (localStorage.getItem('arcus_needs_onboarding') === 'true') {
       setShowWelcome(true)
     }
@@ -323,7 +324,7 @@ export default function DashboardPage() {
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-8">
         <div>
-          <p className="text-sm text-slate-500 mb-1">{getGreeting()}</p>
+          <p className="text-sm text-slate-500 mb-1">{greeting}</p>
           <h1 className="text-3xl font-bold text-slate-100">{username || 'Founder'}</h1>
         </div>
         <div className="flex items-center gap-3">

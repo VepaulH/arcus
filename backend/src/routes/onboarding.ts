@@ -53,19 +53,20 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
   // 1. Compute roadmap
   const roadmap_id = computeRoadmapId({ startup_stage, position, revenue_range, looking_for, skills, experience })
 
-  // 2. Upsert profile fields
-  await supabase
-    .from('profiles')
-    .upsert({
-      id: userId,
-      startup_stage,
-      position,
-      skills,
-      experience,
-      ...(university ? { university } : {}),
-      ...(bio ? { bio } : {}),
-      updated_at: new Date().toISOString(),
-    })
+  // 2. Update only the survey-derived profile fields — never touch name or email
+  const profileUpdate: Record<string, unknown> = {
+    startup_stage,
+    position,
+    skills,
+    experience,
+    updated_at: new Date().toISOString(),
+  }
+  if (university) profileUpdate.university = university
+  if (bio)        profileUpdate.bio = bio
+
+  await (supabase.from('profiles') as any)
+    .update(profileUpdate)
+    .eq('id', userId)
 
   // 3. Upsert onboarding_data
   const { error: onboardingError } = await supabase
@@ -138,9 +139,8 @@ router.patch('/progress/:nodeId', requireAuth, async (req: AuthRequest, res) => 
   const { nodeId } = req.params
   const { status, progress } = req.body as { status?: string; progress?: number }
 
-  const { data, error } = await supabase
-    .from('roadmap_progress')
-    .update({ ...(status ? { status } : {}), ...(progress !== undefined ? { progress } : {}), updated_at: new Date().toISOString() } as any)
+  const { data, error } = await (supabase.from('roadmap_progress') as any)
+    .update({ ...(status ? { status } : {}), ...(progress !== undefined ? { progress } : {}), updated_at: new Date().toISOString() })
     .eq('user_id', userId)
     .eq('node_id', nodeId)
     .select()

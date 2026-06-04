@@ -103,6 +103,35 @@ export interface Database {
           status?: 'pending' | 'accepted' | 'declined'
         }
       }
+      onboarding_data: {
+        Row: {
+          id: string
+          user_id: string
+          revenue_range: string | null
+          looking_for: string | null
+          referral_source: string | null
+          roadmap_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          revenue_range?: string | null
+          looking_for?: string | null
+          referral_source?: string | null
+          roadmap_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          revenue_range?: string | null
+          looking_for?: string | null
+          referral_source?: string | null
+          roadmap_id?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }
