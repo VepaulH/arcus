@@ -88,11 +88,7 @@ export default function ProfilePage() {
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set())
   const [acceptedNotifications, setAcceptedNotifications] = useState<AcceptedOutgoing[]>([])
 
-  function dismissNotification(connId: string) {
-    const dismissed: string[] = JSON.parse(localStorage.getItem('arcus_dismissed_notifs') ?? '[]')
-    localStorage.setItem('arcus_dismissed_notifs', JSON.stringify([...dismissed, connId]))
-    setAcceptedNotifications(prev => prev.filter(n => n.id !== connId))
-  }
+
 
   useEffect(() => {
     if (authLoading) return
@@ -125,7 +121,15 @@ export default function ProfilePage() {
       if (incomingRes.data) setIncomingRequests(incomingRes.data)
       if (acceptedRes.data) {
         const dismissed: string[] = JSON.parse(localStorage.getItem('arcus_dismissed_notifs') ?? '[]')
-        setAcceptedNotifications(acceptedRes.data.filter(n => !dismissed.includes(n.id)))
+        const unseen = acceptedRes.data.filter(n => !dismissed.includes(n.id))
+        setAcceptedNotifications(unseen)
+        // Auto-dismiss on first view — won't show again next visit
+        if (unseen.length > 0) {
+          localStorage.setItem(
+            'arcus_dismissed_notifs',
+            JSON.stringify([...dismissed, ...unseen.map(n => n.id)])
+          )
+        }
       }
       setFetching(false)
     })
@@ -264,13 +268,6 @@ export default function ProfilePage() {
                   <span className="text-slate-400"> accepted your connection request</span>
                 </p>
               </div>
-              <button
-                onClick={() => dismissNotification(n.id)}
-                className="text-slate-600 hover:text-slate-400 transition-colors text-lg leading-none shrink-0"
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
             </div>
           ))}
         </div>

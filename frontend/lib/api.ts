@@ -165,6 +165,29 @@ export interface RoadmapProgress {
   progress: { node_id: string; status: string; progress: number }[]
 }
 
+// ── Goals ─────────────────────────────────────────────────────
+
+export interface Goal {
+  id: string
+  title: string
+  current: number
+  target: number
+  unit: string
+}
+
+export const goalsApi = {
+  getAll: () =>
+    apiFetch<Goal[]>('/api/goals'),
+
+  increment: (id: string) =>
+    apiFetch<Goal>(`/api/goals/${id}/increment`, { method: 'POST' }),
+
+  decrement: (id: string) =>
+    apiFetch<Goal>(`/api/goals/${id}/decrement`, { method: 'POST' }),
+}
+
+// ── Onboarding / Roadmap ──────────────────────────────────────
+
 export const onboardingApi = {
   get: () =>
     apiFetch<{ roadmap_id: string; revenue_range: string; looking_for: string } | null>('/api/onboarding'),

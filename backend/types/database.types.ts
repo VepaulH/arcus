@@ -103,6 +103,32 @@ export interface Database {
           status?: 'pending' | 'accepted' | 'declined'
         }
       }
+      weekly_goals: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          current_count: number
+          target: number
+          unit: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          current_count?: number
+          target: number
+          unit: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          current_count?: number
+          updated_at?: string
+        }
+      }
       onboarding_data: {
         Row: {
           id: string

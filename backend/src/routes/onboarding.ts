@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { requireAuth } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
 import { computeRoadmapId, ROADMAP_INITIAL_NODES } from '../lib/roadmaps'
+import { GOAL_SEEDS, DEFAULT_GOALS } from '../lib/goals'
 
 const router = Router()
 
@@ -94,14 +95,32 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
   if (!existingProgress || existingProgress.length === 0) {
     const initialNodes = ROADMAP_INITIAL_NODES[roadmap_id]
-    const rows = initialNodes.map(n => ({
+    const progressRows = initialNodes.map(n => ({
       user_id: userId,
       node_id: n.id,
       status: n.status,
       progress: 0,
     }))
+    await supabase.from('roadmap_progress').insert(progressRows as any)
+  }
 
-    await supabase.from('roadmap_progress').insert(rows as any)
+  // 5. Seed weekly_goals (only if none exist yet)
+  const { data: existingGoals } = await supabase
+    .from('weekly_goals')
+    .select('id')
+    .eq('user_id', userId)
+    .limit(1)
+
+  if (!existingGoals || existingGoals.length === 0) {
+    const seeds = GOAL_SEEDS[startup_stage] ?? DEFAULT_GOALS
+    const goalRows = seeds.map(g => ({
+      user_id: userId,
+      title: g.title,
+      current_count: 0,
+      target: g.target,
+      unit: g.unit,
+    }))
+    await supabase.from('weekly_goals').insert(goalRows as any)
   }
 
   res.json({ roadmap_id })

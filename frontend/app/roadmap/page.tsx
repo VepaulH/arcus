@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useAuth } from '../context/AuthContext'
 import { onboardingApi } from '../../lib/api'
 import { ROADMAP_TEMPLATES, NODE_W, NODE_H, SVG_W, SVG_H } from '../../lib/roadmaps'
+import { NODE_BENCHMARKS } from '../../lib/benchmarks'
 import type { RoadmapNode, RoadmapTemplate, NodeStatus } from '../../lib/roadmaps'
 
 const RADIUS = 12
@@ -28,7 +29,8 @@ function nodeFill(status: NodeStatus) {
   return 'rgba(255,255,255,0.04)'
 }
 
-function nodeStroke(status: NodeStatus) {
+function nodeStroke(status: NodeStatus, selected: boolean) {
+  if (selected)               return 'rgba(250,204,21,0.8)'
   if (status === 'active')    return 'rgba(99,155,255,0.7)'
   if (status === 'available') return 'rgba(59,130,246,0.3)'
   return 'rgba(255,255,255,0.08)'
@@ -44,6 +46,7 @@ export default function RoadmapPage() {
   const { loading: authLoading, isLoggedIn } = useAuth()
   const [template, setTemplate] = useState<RoadmapTemplate | null>(null)
   const [fetching, setFetching] = useState(true)
+  const [selectedNode, setSelectedNode] = useState<RoadmapNode | null>(null)
 
   useEffect(() => {
     if (authLoading) return
@@ -55,7 +58,6 @@ export default function RoadmapPage() {
       const tmpl = ROADMAP_TEMPLATES[data.roadmap_id as keyof typeof ROADMAP_TEMPLATES]
       if (!tmpl) { setFetching(false); return }
 
-      // Overlay saved progress onto template nodes
       const progressMap = Object.fromEntries(
         data.progress.map(p => [p.node_id, { status: p.status as NodeStatus, progress: p.progress }])
       )
@@ -71,6 +73,10 @@ export default function RoadmapPage() {
       setFetching(false)
     })
   }, [authLoading, isLoggedIn])
+
+  function handleNodeClick(node: RoadmapNode) {
+    setSelectedNode(prev => prev?.id === node.id ? null : node)
+  }
 
   if (fetching) {
     return (
@@ -94,6 +100,7 @@ export default function RoadmapPage() {
   const activeCount    = template.nodes.filter(n => n.status === 'active').length
   const availableCount = template.nodes.filter(n => n.status === 'available').length
   const completedCount = template.nodes.filter(n => n.progress === 100).length
+  const benchmarks     = selectedNode ? NODE_BENCHMARKS[selectedNode.id] : null
 
   return (
     <div className="px-6 py-20">
@@ -135,7 +142,7 @@ export default function RoadmapPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-8 mb-8">
+      <div className="flex items-center justify-center gap-8 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm" style={{ background: 'linear-gradient(135deg,#3b82f6,#2563eb)' }} />
           <span className="text-xs text-slate-400">Active</span>
@@ -149,9 +156,10 @@ export default function RoadmapPage() {
           <span className="text-xs text-slate-400">Locked</span>
         </div>
       </div>
+      <p className="text-center text-xs text-slate-600 mb-6">Click any node to see what it takes to complete it</p>
 
       {/* Graph */}
-      <div className="overflow-x-auto rounded-2xl border border-white/8 bg-white/[0.02] p-8">
+      <div className="overflow-x-auto rounded-2xl border border-white/8 bg-white/[0.02] p-8 mb-6">
         <svg width={SVG_W} height={SVG_H} viewBox={`0 0 ${SVG_W} ${SVG_H}`} style={{ display: 'block' }}>
           <defs>
             <linearGradient id="activeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -169,9 +177,12 @@ export default function RoadmapPage() {
               <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
+            <filter id="selectedGlow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="6" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
           </defs>
 
-          {/* Edges */}
           {template.edges.map((e, i) => (
             <path
               key={i}
@@ -183,23 +194,36 @@ export default function RoadmapPage() {
             />
           ))}
 
-          {/* Nodes */}
           {template.nodes.map(node => {
             const cx  = node.x + NODE_W / 2
             const pbX = node.x + 18
             const pbW = NODE_W - 36
             const pbY = node.y + NODE_H - 20
-            const isActive = node.status === 'active'
+            const isActive   = node.status === 'active'
+            const isSelected = selectedNode?.id === node.id
 
             return (
-              <g key={node.id} style={{ cursor: node.status === 'locked' ? 'default' : 'pointer' }} filter={isActive ? 'url(#glow)' : undefined}>
+              <g
+                key={node.id}
+                onClick={() => handleNodeClick(node)}
+                style={{ cursor: 'pointer' }}
+                filter={isSelected ? 'url(#selectedGlow)' : isActive ? 'url(#glow)' : undefined}
+              >
                 <rect
                   x={node.x} y={node.y}
                   width={NODE_W} height={NODE_H}
                   rx={RADIUS} ry={RADIUS}
                   fill={nodeFill(node.status)}
-                  stroke={nodeStroke(node.status)}
-                  strokeWidth="1"
+                  stroke={nodeStroke(node.status, isSelected)}
+                  strokeWidth={isSelected ? 2 : 1}
+                />
+                {/* Hover area (slightly larger, transparent) */}
+                <rect
+                  x={node.x - 4} y={node.y - 4}
+                  width={NODE_W + 8} height={NODE_H + 8}
+                  rx={RADIUS + 4} ry={RADIUS + 4}
+                  fill="transparent"
+                  stroke="none"
                 />
                 <text
                   x={cx} y={node.y + 30}
@@ -219,6 +243,68 @@ export default function RoadmapPage() {
           })}
         </svg>
       </div>
+
+      {/* Benchmark panel — appears when a node is selected */}
+      {selectedNode && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-8 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-start justify-between gap-6 mb-6">
+            <div>
+              <div className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border mb-3 ${
+                selectedNode.status === 'active'    ? 'border-blue-400/30 bg-blue-500/10 text-blue-300' :
+                selectedNode.status === 'available' ? 'border-blue-400/20 bg-blue-500/5 text-blue-400' :
+                                                      'border-white/10 bg-white/5 text-slate-500'
+              }`}>
+                {selectedNode.status === 'active' ? 'In progress' : selectedNode.status === 'available' ? 'Available' : 'Locked'}
+              </div>
+              <h2 className="text-xl font-bold text-slate-100">{selectedNode.label}</h2>
+              {benchmarks && (
+                <p className="text-sm text-slate-400 mt-1.5 leading-relaxed max-w-2xl">{benchmarks.description}</p>
+              )}
+            </div>
+            <button
+              onClick={() => setSelectedNode(null)}
+              className="shrink-0 text-slate-600 hover:text-slate-400 transition-colors text-2xl leading-none mt-1"
+            >
+              ×
+            </button>
+          </div>
+
+          {benchmarks ? (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                Benchmarks to complete this stage
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {benchmarks.benchmarks.map((b, i) => (
+                  <div key={i} className="flex items-start gap-3 p-4 rounded-xl border border-white/8 bg-white/[0.03]">
+                    <div className="w-5 h-5 rounded-full border border-white/15 bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-slate-500 text-xs font-bold">{i + 1}</span>
+                    </div>
+                    <p className="text-sm text-slate-300 leading-relaxed">{b}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-600">No benchmarks defined for this node yet.</p>
+          )}
+
+          {selectedNode.progress > 0 && (
+            <div className="mt-5 pt-5 border-t border-white/5">
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                <span>Your progress</span>
+                <span>{selectedNode.progress}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400"
+                  style={{ width: `${selectedNode.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   )

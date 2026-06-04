@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
-import { profileApi, onboardingApi, connectionsApi } from '../../lib/api'
+import { profileApi, onboardingApi, connectionsApi, goalsApi } from '../../lib/api'
+import type { Goal } from '../../lib/api'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -16,13 +17,6 @@ interface Task {
   completed: boolean
 }
 
-interface Goal {
-  id: number
-  title: string
-  current: number
-  target: number
-  unit: string
-}
 
 interface Metric {
   label: string
@@ -86,11 +80,7 @@ const INITIAL_TASKS: Task[] = [
   },
 ]
 
-const GOALS: Goal[] = [
-  { id: 1, title: 'Customer interviews', current: 3, target: 10, unit: 'interviews' },
-  { id: 2, title: 'Waitlist signups', current: 8, target: 25, unit: 'signups' },
-  { id: 3, title: 'MVP prototype', current: 20, target: 100, unit: '% complete' },
-]
+const FALLBACK_GOALS: Goal[] = []
 
 // ── Survey → metric helpers ────────────────────────────────────────────────────
 
@@ -246,12 +236,35 @@ export default function DashboardPage() {
   const [insights, setInsights] = useState<string[]>([
     'Complete the onboarding survey to get personalised insights for your startup.',
   ])
+  const [goals, setGoals] = useState<Goal[]>(FALLBACK_GOALS)
+  const [goalsLoading, setGoalsLoading] = useState(true)
+  const [goalsError, setGoalsError] = useState<string | null>(null)
+  const [incrementing, setIncrementing] = useState<Set<string>>(new Set())
+
+  async function handleIncrement(id: string) {
+    setIncrementing(prev => new Set(prev).add(id))
+    const { data } = await goalsApi.increment(id)
+    if (data) setGoals(prev => prev.map(g => g.id === id ? data : g))
+    setIncrementing(prev => { const s = new Set(prev); s.delete(id); return s })
+  }
+
+  async function handleDecrement(id: string) {
+    setIncrementing(prev => new Set(prev).add(id))
+    const { data } = await goalsApi.decrement(id)
+    if (data) setGoals(prev => prev.map(g => g.id === id ? data : g))
+    setIncrementing(prev => { const s = new Set(prev); s.delete(id); return s })
+  }
 
   useEffect(() => {
     setGreeting(computeGreeting())
     if (localStorage.getItem('arcus_needs_onboarding') === 'true') {
       setShowWelcome(true)
     }
+    goalsApi.getAll().then(({ data, error }) => {
+      if (error) setGoalsError(error)
+      else setGoals(data ?? [])
+      setGoalsLoading(false)
+    })
     Promise.all([
       profileApi.get(),
       onboardingApi.get(),
@@ -339,58 +352,45 @@ export default function DashboardPage() {
       <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6 mb-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-semibold text-slate-300">Startup Journey</h2>
-          <span className="text-xs text-slate-500">
-            {0}% through {STAGES[currentStageIndex]}
+          <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-500/15 border border-blue-400/25 text-blue-300">
+            Currently here
           </span>
         </div>
 
         {/* Stage steps */}
         <div className="relative flex items-start justify-between">
-          {/* Connector lines behind nodes */}
           <div className="absolute left-3.5 right-3.5 top-3.5 h-px bg-white/8" />
           <div
-            className="absolute left-3.5 top-3.5 h-px bg-gradient-to-r from-blue-500 to-blue-400 transition-all"
-            style={{
-              width: `calc(${(currentStageIndex / (STAGES.length - 1)) * 100}% - 0px)`,
-            }}
+            className="absolute left-3.5 top-3.5 h-px bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-500"
+            style={{ width: `calc(${(currentStageIndex / (STAGES.length - 1)) * 100}% - 0px)` }}
           />
 
           {STAGES.map((stage, i) => {
-            const done = i < currentStageIndex
+            const done   = i < currentStageIndex
             const active = i === currentStageIndex
             return (
               <div key={stage} className="relative z-10 flex flex-col items-center gap-2" style={{ flex: 1 }}>
+                {/* Ring around active dot */}
+                {active && (
+                  <div className="absolute top-0 w-7 h-7 rounded-full ring-4 ring-blue-400/25 animate-pulse" />
+                )}
                 <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-colors ${
                   done
                     ? 'bg-blue-500 border-blue-500 text-white'
                     : active
-                    ? 'bg-[#0b1220] border-blue-400 text-blue-300'
+                    ? 'bg-blue-500 border-blue-300 text-white'
                     : 'bg-[#0b1220] border-white/15 text-slate-600'
                 }`}>
-                  {done ? <CheckIcon /> : <span>{i + 1}</span>}
+                  {done ? <CheckIcon /> : active ? <span className="text-[10px]">●</span> : <span>{i + 1}</span>}
                 </div>
                 <span className={`text-xs font-medium text-center leading-tight ${
-                  done ? 'text-blue-400' : active ? 'text-slate-200' : 'text-slate-600'
+                  done ? 'text-blue-400' : active ? 'text-blue-300 font-semibold' : 'text-slate-600'
                 }`}>
                   {stage}
                 </span>
               </div>
             )
           })}
-        </div>
-
-        {/* Current stage progress bar */}
-        <div className="mt-5 pt-5 border-t border-white/5">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-            <span>Progress in {STAGES[currentStageIndex]}</span>
-            <span>{0}%</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all"
-              style={{ width: `${0}%` }}
-            />
-          </div>
         </div>
       </div>
 
@@ -478,32 +478,60 @@ export default function DashboardPage() {
             <h2 className="text-base font-semibold text-slate-100 mb-0.5">Weekly Goals</h2>
             <p className="text-xs text-slate-500 mb-5">This week&apos;s targets</p>
 
-            <div className="flex flex-col gap-5">
-              {GOALS.map(goal => {
-                const pct = Math.min(Math.round((goal.current / goal.target) * 100), 100)
-                return (
-                  <div key={goal.id}>
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="text-slate-300 font-medium">{goal.title}</span>
-                      <span className="text-slate-500 tabular-nums">
-                        {goal.current}/{goal.target} {goal.unit}
-                      </span>
+            {goalsLoading ? (
+              <p className="text-xs text-slate-600">Loading…</p>
+            ) : goalsError ? (
+              <p className="text-xs text-red-400">{goalsError}</p>
+            ) : goals.length === 0 ? (
+              <p className="text-xs text-slate-600">No goals yet — complete onboarding to generate them.</p>
+            ) : (
+              <div className="flex flex-col gap-5">
+                {goals.map(goal => {
+                  const pct = Math.min(Math.round((goal.current / goal.target) * 100), 100)
+                  const done = pct >= 100
+                  const busy = incrementing.has(goal.id)
+                  return (
+                    <div key={goal.id}>
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="text-slate-300 font-medium">{goal.title}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-500 tabular-nums">
+                            {goal.current}/{goal.target} {goal.unit}
+                          </span>
+                          {goal.current > 0 && (
+                            <button
+                              onClick={() => handleDecrement(goal.id)}
+                              disabled={busy}
+                              className="w-5 h-5 rounded-full border border-white/15 bg-white/5 hover:bg-red-500/15 hover:border-red-400/30 text-slate-500 hover:text-red-400 flex items-center justify-center transition-colors disabled:opacity-40 text-base leading-none"
+                              aria-label="Decrement"
+                            >
+                              −
+                            </button>
+                          )}
+                          {!done && (
+                            <button
+                              onClick={() => handleIncrement(goal.id)}
+                              disabled={busy}
+                              className="w-5 h-5 rounded-full border border-white/15 bg-white/5 hover:bg-blue-500/20 hover:border-blue-400/40 text-slate-400 hover:text-blue-300 flex items-center justify-center transition-colors disabled:opacity-40 text-base leading-none"
+                              aria-label="Increment"
+                            >
+                              +
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${done ? 'bg-emerald-500' : 'bg-gradient-to-r from-blue-500 to-blue-400'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-slate-600 mt-1">{pct}%{done ? ' — complete!' : ''}</p>
                     </div>
-                    <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          pct >= 100
-                            ? 'bg-emerald-500'
-                            : 'bg-gradient-to-r from-blue-500 to-blue-400'
-                        }`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1">{pct}%</p>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* AI Insights */}
