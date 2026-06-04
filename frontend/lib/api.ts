@@ -145,3 +145,42 @@ export const connectionsApi = {
   getList: () =>
     apiFetch<ConnectedUser[]>('/api/connections/list'),
 }
+
+// ── Onboarding / Roadmap ──────────────────────────────────────
+
+export interface OnboardingPayload {
+  startup_stage: string
+  position: string
+  revenue_range: string
+  looking_for: string
+  skills: string[]
+  experience: string
+  university?: string
+  bio?: string
+  referral_source?: string
+}
+
+export interface RoadmapProgress {
+  roadmap_id: string | null
+  progress: { node_id: string; status: string; progress: number }[]
+}
+
+export const onboardingApi = {
+  get: () =>
+    apiFetch<{ roadmap_id: string; revenue_range: string; looking_for: string } | null>('/api/onboarding'),
+
+  submit: (payload: OnboardingPayload) =>
+    apiFetch<{ roadmap_id: string }>('/api/onboarding', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getProgress: () =>
+    apiFetch<RoadmapProgress>('/api/onboarding/progress'),
+
+  updateNode: (nodeId: string, data: { status?: string; progress?: number }) =>
+    apiFetch(`/api/onboarding/progress/${nodeId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
+import { profileApi, onboardingApi, connectionsApi } from '../../lib/api'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -29,28 +30,18 @@ interface Metric {
   delta: string | null
 }
 
-interface FeedItem {
-  id: number
-  name: string
-  initials: string
-  action: string
-  time: string
-}
 
 interface Opportunity {
   id: number
   title: string
   type: 'Competition' | 'Accelerator' | 'Hackathon' | 'Grant' | 'Event'
-  date: string
-  deadline: string
+  href: string
 }
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
 // Replace with backend API calls once data layer is ready.
 
-const STAGES = ['Idea', 'Validation', 'MVP', 'First Users', 'Revenue', 'Scale']
-const CURRENT_STAGE_INDEX = 1
-const STAGE_COMPLETION = 35
+const STAGES = ['Ideation', 'Validation', 'Building', 'Launch', 'Growth']
 
 const INITIAL_TASKS: Task[] = [
   {
@@ -101,33 +92,96 @@ const GOALS: Goal[] = [
   { id: 3, title: 'MVP prototype', current: 20, target: 100, unit: '% complete' },
 ]
 
-const METRICS: Metric[] = [
-  { label: 'Customer Interviews', value: 3, delta: '+3 this week' },
-  { label: 'Waitlist Signups', value: 8, delta: '+8 this week' },
-  { label: 'Active Users', value: 0, delta: null },
-  { label: 'Revenue', value: '$0', delta: null },
-  { label: 'Team Members', value: 1, delta: null },
-  { label: 'Milestones', value: 2, delta: '+1 this week' },
-]
+// ── Survey → metric helpers ────────────────────────────────────────────────────
 
-const AI_INSIGHTS = [
-  "You're in the Validation stage. Successful founders at this stage focus on customer discovery before adding features.",
-  "3 of 10 interviews done this week — schedule 2 more calls to stay on track.",
-]
+function revenueShort(range: string | null | undefined): string {
+  if (!range || range === 'Pre-revenue') return '$0'
+  if (range.startsWith('$1 –'))   return '<$1K/mo'
+  if (range.startsWith('$1K'))    return '$1K–10K'
+  if (range.startsWith('$10K'))   return '$10K–100K'
+  if (range.startsWith('$100K')) return '$100K+/mo'
+  return '$0'
+}
 
-const FEED: FeedItem[] = [
-  { id: 1, name: 'Sarah M.', initials: 'SM', action: 'launched her MVP', time: '2h ago' },
-  { id: 2, name: 'David K.', initials: 'DK', action: 'found a technical co-founder', time: '5h ago' },
-  { id: 3, name: 'Priya S.', initials: 'PS', action: 'completed 20 customer interviews', time: '1d ago' },
-  { id: 4, name: 'Alex R.', initials: 'AR', action: 'joined Y Combinator', time: '1d ago' },
-  { id: 5, name: 'Jordan L.', initials: 'JL', action: 'hit $1K MRR', time: '2d ago' },
-]
+function teamLabel(position: string | null | undefined, lookingFor: string | null | undefined): string {
+  if (position === 'Co-founder')                              return '2'
+  if (lookingFor === 'I already have a team')                 return '3+'
+  if (lookingFor === 'Yes — looking for first employees')     return '2'
+  return '1'
+}
+
+function buildMetrics(
+  stage:      string | null | undefined,
+  position:   string | null | undefined,
+  experience: string | null | undefined,
+  skills:     string[] | null | undefined,
+  revenue:    string | null | undefined,
+  lookingFor: string | null | undefined,
+  connections: number,
+): Metric[] {
+  return [
+    { label: 'Revenue',     value: revenueShort(revenue),                     delta: revenue && revenue !== 'Pre-revenue' ? 'from survey' : null },
+    { label: 'Team',        value: teamLabel(position, lookingFor),            delta: position ?? null },
+    { label: 'Skills',      value: skills?.length ?? 0,                       delta: skills?.slice(0, 2).join(', ') || null },
+    { label: 'Connections', value: connections,                                delta: null },
+    { label: 'Experience',  value: experience ?? '—',                         delta: null },
+    { label: 'Stage',       value: stage ?? '—',                              delta: null },
+  ]
+}
+
+function buildInsights(
+  stage:      string | null | undefined,
+  lookingFor: string | null | undefined,
+  revenue:    string | null | undefined,
+  skills:     string[] | null | undefined,
+): string[] {
+  const list: string[] = []
+  const TECHNICAL = new Set(['Frontend', 'Backend', 'Mobile', 'React', 'Python', 'Go', 'DevOps', 'AWS', 'ML / AI'])
+  const isTechnical = skills?.some(s => TECHNICAL.has(s)) ?? false
+
+  switch (stage) {
+    case 'Ideation':
+      list.push("You're at the Ideation stage. Talk to at least 10 potential customers before building anything — deep problem understanding beats any solution.")
+      break
+    case 'Validation':
+      list.push("You're validating. Aim for 20–30 customer interviews and look for the same pain mentioned 3+ times. That pattern is your signal to build.")
+      break
+    case 'Building':
+      list.push("You're building. Ship the smallest version that solves the core problem. Every day spent building something users don't need is time you won't get back.")
+      break
+    case 'Launch':
+      list.push("You've launched. Focus on acquiring your first 100 users before adding features. Retention metrics at this stage are more important than acquisition.")
+      break
+    case 'Growth':
+      list.push("You're growing. Double down on whichever acquisition channel is already working — don't spread across too many at once.")
+      break
+  }
+
+  if (lookingFor === 'Yes — looking for a co-founder') {
+    list.push("Finding a co-founder is one of the most important decisions you'll make. Prioritise complementary skills and shared values over shared excitement.")
+  } else if (lookingFor === 'Yes — looking for a mentor') {
+    list.push("A great mentor has already made the mistakes ahead of you. Connect with experienced founders in your space through the Arcus community.")
+  } else if (lookingFor === 'Yes — looking for first employees') {
+    list.push("Your first hires shape your culture permanently. Look for generalists who take ownership, not specialists who wait for instructions.")
+  }
+
+  if (!isTechnical && (stage === 'Ideation' || stage === 'Validation')) {
+    list.push("As a non-technical founder your edge is customer insight and distribution — not code. Validate the demand hard before investing in any engineering.")
+  }
+
+  if ((!revenue || revenue === 'Pre-revenue') && (stage === 'Building' || stage === 'Launch')) {
+    list.push("No revenue yet — define your first revenue milestone clearly. Who pays, what for, and how much. Work backwards from that number.")
+  }
+
+  return list.slice(0, 2)
+}
+
 
 const OPPORTUNITIES: Opportunity[] = [
-  { id: 1, title: 'MIT $100K Business Competition', type: 'Competition', date: 'Jun 15, 2026', deadline: 'Jun 10' },
-  { id: 2, title: 'Y Combinator W27', type: 'Accelerator', date: 'Oct 2026', deadline: 'Jul 1' },
-  { id: 3, title: 'HackMIT 2026', type: 'Hackathon', date: 'Sep 12, 2026', deadline: 'Aug 15' },
-  { id: 4, title: 'NSF SBIR Phase I Grant', type: 'Grant', date: 'Rolling', deadline: 'Aug 1' },
+  { id: 1, title: 'MIT $100K Business Competition', type: 'Competition', href: 'https://www.mit100k.org' },
+  { id: 2, title: 'Y Combinator',                  type: 'Accelerator', href: 'https://www.ycombinator.com/apply' },
+  { id: 3, title: 'HackMIT',                        type: 'Hackathon',   href: 'https://hackmit.org' },
+  { id: 4, title: 'NSF SBIR Phase I Grant',         type: 'Grant',       href: 'https://seedfund.nsf.gov' },
 ]
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -154,13 +208,6 @@ const OPPORTUNITY_TYPE_STYLE: Record<Opportunity['type'], string> = {
   Event: 'text-slate-300 bg-slate-500/10 border-slate-400/20',
 }
 
-const AVATAR_GRADIENTS = [
-  'from-blue-500 to-blue-700',
-  'from-indigo-500 to-blue-600',
-  'from-sky-500 to-blue-600',
-  'from-blue-400 to-indigo-600',
-  'from-violet-500 to-blue-600',
-]
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -187,11 +234,45 @@ export default function DashboardPage() {
   const router = useRouter()
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
   const [showWelcome, setShowWelcome] = useState(false)
+  const [currentStageIndex, setCurrentStageIndex] = useState(0)
+  const [metrics, setMetrics] = useState<Metric[]>([
+    { label: 'Revenue',     value: '—', delta: null },
+    { label: 'Team',        value: '—', delta: null },
+    { label: 'Skills',      value: '—', delta: null },
+    { label: 'Connections', value: '—', delta: null },
+    { label: 'Experience',  value: '—', delta: null },
+    { label: 'Stage',       value: '—', delta: null },
+  ])
+  const [insights, setInsights] = useState<string[]>([
+    'Complete the onboarding survey to get personalised insights for your startup.',
+  ])
 
   useEffect(() => {
     if (localStorage.getItem('arcus_needs_onboarding') === 'true') {
       setShowWelcome(true)
     }
+    Promise.all([
+      profileApi.get(),
+      onboardingApi.get(),
+      connectionsApi.getCount(),
+    ]).then(([profileRes, onboardingRes, countRes]) => {
+      const p = profileRes.data
+      const o = onboardingRes.data
+      const connCount = countRes.data?.count ?? 0
+
+      if (p?.startup_stage) {
+        const idx = STAGES.indexOf(p.startup_stage)
+        if (idx !== -1) setCurrentStageIndex(idx)
+      }
+
+      setMetrics(buildMetrics(
+        p?.startup_stage, p?.position, p?.experience,
+        p?.skills, o?.revenue_range, o?.looking_for, connCount,
+      ))
+
+      const insightList = buildInsights(p?.startup_stage, o?.looking_for, o?.revenue_range, p?.skills)
+      if (insightList.length > 0) setInsights(insightList)
+    })
   }, [])
 
   function toggleTask(id: number) {
@@ -199,9 +280,7 @@ export default function DashboardPage() {
   }
 
   const completedCount = tasks.filter(t => t.completed).length
-  const overallProgress = Math.round(
-    ((CURRENT_STAGE_INDEX + STAGE_COMPLETION / 100) / STAGES.length) * 100
-  )
+  const overallProgress = Math.round((currentStageIndex / (STAGES.length - 1)) * 100)
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
@@ -249,7 +328,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="px-3 py-1 text-xs font-semibold text-blue-300 border border-blue-400/20 rounded-full bg-blue-400/5 uppercase tracking-widest">
-            {STAGES[CURRENT_STAGE_INDEX]}
+            {STAGES[currentStageIndex]}
           </span>
           <span className="text-sm text-slate-500">{overallProgress}% overall</span>
         </div>
@@ -260,7 +339,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-semibold text-slate-300">Startup Journey</h2>
           <span className="text-xs text-slate-500">
-            {STAGE_COMPLETION}% through {STAGES[CURRENT_STAGE_INDEX]}
+            {0}% through {STAGES[currentStageIndex]}
           </span>
         </div>
 
@@ -271,13 +350,13 @@ export default function DashboardPage() {
           <div
             className="absolute left-3.5 top-3.5 h-px bg-gradient-to-r from-blue-500 to-blue-400 transition-all"
             style={{
-              width: `calc(${(CURRENT_STAGE_INDEX / (STAGES.length - 1)) * 100}% - 0px)`,
+              width: `calc(${(currentStageIndex / (STAGES.length - 1)) * 100}% - 0px)`,
             }}
           />
 
           {STAGES.map((stage, i) => {
-            const done = i < CURRENT_STAGE_INDEX
-            const active = i === CURRENT_STAGE_INDEX
+            const done = i < currentStageIndex
+            const active = i === currentStageIndex
             return (
               <div key={stage} className="relative z-10 flex flex-col items-center gap-2" style={{ flex: 1 }}>
                 <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-colors ${
@@ -302,13 +381,13 @@ export default function DashboardPage() {
         {/* Current stage progress bar */}
         <div className="mt-5 pt-5 border-t border-white/5">
           <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-            <span>Progress in {STAGES[CURRENT_STAGE_INDEX]}</span>
-            <span>{STAGE_COMPLETION}%</span>
+            <span>Progress in {STAGES[currentStageIndex]}</span>
+            <span>{0}%</span>
           </div>
           <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
             <div
               className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all"
-              style={{ width: `${STAGE_COMPLETION}%` }}
+              style={{ width: `${0}%` }}
             />
           </div>
         </div>
@@ -316,7 +395,7 @@ export default function DashboardPage() {
 
       {/* ── Metrics Row ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-        {METRICS.map(metric => (
+        {metrics.map(metric => (
           <div key={metric.label} className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-5">
             <p className="text-2xl font-bold text-slate-100 mb-1">{metric.value}</p>
             <p className="text-xs text-slate-500 leading-snug">{metric.label}</p>
@@ -436,7 +515,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex flex-col gap-3.5">
-              {AI_INSIGHTS.map((insight, i) => (
+              {insights.map((insight, i) => (
                 <div key={i} className="flex gap-2.5 items-start">
                   <div className="w-1 h-1 rounded-full bg-blue-400 shrink-0 mt-1.5" />
                   <p className="text-xs text-slate-400 leading-relaxed">{insight}</p>
@@ -452,69 +531,32 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Bottom Grid: Activity Feed | Opportunities ───────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* ── Opportunities ───────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6">
+        <h2 className="text-base font-semibold text-slate-100 mb-0.5">Opportunities</h2>
+        <p className="text-xs text-slate-500 mb-5">Competitions, accelerators, hackathons & grants — check each site for current deadlines</p>
 
-        {/* Founder Activity Feed */}
-        <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-0.5">Founder Activity</h2>
-          <p className="text-xs text-slate-500 mb-5">What others in the community are accomplishing</p>
-
-          <div className="flex flex-col divide-y divide-white/5">
-            {FEED.map((item, i) => (
-              <div key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]} flex items-center justify-center shrink-0`}>
-                  <span className="text-white text-xs font-bold">{item.initials}</span>
-                </div>
-                <p className="flex-1 text-sm text-slate-300 leading-snug min-w-0">
-                  <span className="font-semibold">{item.name}</span>{' '}
-                  <span className="text-slate-400">{item.action}</span>
-                </p>
-                <span className="text-xs text-slate-600 shrink-0">{item.time}</span>
-              </div>
-            ))}
-          </div>
-
-          <button className="mt-5 w-full py-2 text-xs text-slate-500 hover:text-slate-300 transition-colors border border-white/8 rounded-lg">
-            View all activity
-          </button>
-        </div>
-
-        {/* Upcoming Opportunities */}
-        <div className="rounded-2xl border border-white/8 bg-white/5 backdrop-blur-sm p-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-0.5">Upcoming Opportunities</h2>
-          <p className="text-xs text-slate-500 mb-5">Hackathons, competitions, accelerators & grants</p>
-
-          <div className="flex flex-col gap-3">
-            {OPPORTUNITIES.map(opp => (
-              <div
-                key={opp.id}
-                className="flex items-center gap-3 p-4 rounded-xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.06] transition-colors cursor-pointer group"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-200 leading-snug mb-2">
-                    {opp.title}
-                  </p>
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${OPPORTUNITY_TYPE_STYLE[opp.type]}`}>
-                      {opp.type}
-                    </span>
-                    <span className="text-xs text-slate-500">{opp.date}</span>
-                    <span className="text-xs text-slate-600">Deadline: {opp.deadline}</span>
-                  </div>
-                </div>
-                <span className="text-slate-600 group-hover:text-slate-400 transition-colors shrink-0">
-                  <ChevronRight />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {OPPORTUNITIES.map(opp => (
+            <a
+              key={opp.id}
+              href={opp.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-4 rounded-xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.06] transition-colors group"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-200 leading-snug mb-2">{opp.title}</p>
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${OPPORTUNITY_TYPE_STYLE[opp.type]}`}>
+                  {opp.type}
                 </span>
               </div>
-            ))}
-          </div>
-
-          <button className="mt-4 w-full py-2 text-xs text-slate-500 hover:text-slate-300 transition-colors border border-white/8 rounded-lg">
-            View all opportunities
-          </button>
+              <span className="text-slate-600 group-hover:text-slate-400 transition-colors shrink-0">
+                <ChevronRight />
+              </span>
+            </a>
+          ))}
         </div>
-
       </div>
     </div>
   )
