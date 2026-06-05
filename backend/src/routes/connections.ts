@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { requireAuth } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
 import type { Connection, IncomingRequest } from '../../types/database.types'
+import { isUUID } from '../lib/validate'
 
 const router = Router()
 
@@ -140,8 +141,8 @@ router.get('/list', requireAuth, async (req: AuthRequest, res) => {
 
   const result = typedConns.map(c => ({
     connection_id: c.id,
-    connected_at: c.created_at,
-    profile: profileMap[c.requester_id === userId ? c.addressee_id : c.requester_id] ?? null,
+    connected_at:  c.created_at,
+    profile:       profileMap[c.requester_id === userId ? c.addressee_id : c.requester_id] ?? null,
   }))
 
   res.json(result)
@@ -166,10 +167,10 @@ router.get('/count', requireAuth, async (req: AuthRequest, res) => {
 // Send a connection request
 router.post('/request', requireAuth, async (req: AuthRequest, res) => {
   const userId = req.userId!
-  const { addresseeId } = req.body as { addresseeId: string }
+  const { addresseeId } = req.body as { addresseeId: unknown }
 
-  if (!addresseeId) {
-    res.status(400).json({ error: 'addresseeId is required' })
+  if (!isUUID(addresseeId)) {
+    res.status(400).json({ error: 'addresseeId must be a valid UUID' })
     return
   }
   if (addresseeId === userId) {
@@ -177,7 +178,6 @@ router.post('/request', requireAuth, async (req: AuthRequest, res) => {
     return
   }
 
-  // Check both directions so A→B and B→A are treated as the same pair
   const { data: existing } = await supabase
     .from('connections')
     .select('id, status')
@@ -210,7 +210,11 @@ router.post('/:id/accept', requireAuth, async (req: AuthRequest, res) => {
   const userId = req.userId!
   const { id } = req.params
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!isUUID(id)) {
+    res.status(400).json({ error: 'Invalid connection id' })
+    return
+  }
+
   const { data, error } = await (supabase.from('connections') as any)
     .update({ status: 'accepted' })
     .eq('id', id)
@@ -231,7 +235,11 @@ router.post('/:id/decline', requireAuth, async (req: AuthRequest, res) => {
   const userId = req.userId!
   const { id } = req.params
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!isUUID(id)) {
+    res.status(400).json({ error: 'Invalid connection id' })
+    return
+  }
+
   const { data, error } = await (supabase.from('connections') as any)
     .update({ status: 'declined' })
     .eq('id', id)
@@ -251,6 +259,11 @@ router.post('/:id/decline', requireAuth, async (req: AuthRequest, res) => {
 router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
   const userId = req.userId!
   const { id } = req.params
+
+  if (!isUUID(id)) {
+    res.status(400).json({ error: 'Invalid connection id' })
+    return
+  }
 
   const { error } = await supabase
     .from('connections')

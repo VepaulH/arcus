@@ -188,6 +188,20 @@ export default function OnboardingPage() {
     setError(null)
 
     const a = answers
+
+    const bio        = ((a.bio        as string | undefined) ?? '').trim()
+    const university = ((a.university as string | undefined) ?? '').trim()
+
+    if (bio.length > 500) {
+      setError('Bio must be at most 500 characters.')
+      setSubmitting(false)
+      return
+    }
+    if (university.length > 150) {
+      setError('University must be at most 150 characters.')
+      setSubmitting(false)
+      return
+    }
     const { error: apiError } = await onboardingApi.submit({
       startup_stage:  (a.startup_stage  as string)   ?? '',
       position:       (a.position       as string)   ?? '',

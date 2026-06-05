@@ -2,6 +2,10 @@ import { Router } from 'express'
 import { supabase } from '../lib/supabase'
 import { requireAuth } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
+import {
+  isEmail, isEnum, isSkillsArray, cleanText,
+  VALID_POSITIONS, VALID_STARTUP_STAGES, VALID_EXPERIENCE,
+} from '../lib/validate'
 
 const router = Router()
 
@@ -21,30 +25,46 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 })
 
 router.put('/', requireAuth, async (req: AuthRequest, res) => {
-  const { name, email, university, bio, position, skills, startup_stage, experience } = req.body as {
-    name?: string
-    email?: string
-    university?: string
-    bio?: string
-    position?: string
-    skills?: string[]
-    startup_stage?: string
-    experience?: string
+  const b = req.body as Record<string, unknown>
+
+  // Text fields — trim and enforce length limits
+  const name       = cleanText(b.name,       100, 1)
+  const university = cleanText(b.university, 150)
+  const bio        = cleanText(b.bio,        500)
+
+  if (name === null)       { res.status(400).json({ error: 'Name must be between 1 and 100 characters' });        return }
+  if (university === null) { res.status(400).json({ error: 'University must be at most 150 characters' });        return }
+  if (bio === null)        { res.status(400).json({ error: 'Bio must be at most 500 characters' });               return }
+
+  // Email — validate format if provided
+  if (b.email !== undefined && !isEmail(b.email)) {
+    res.status(400).json({ error: 'A valid email address is required' })
+    return
   }
 
-  const { data, error } = await supabase
-    .from('profiles')
+  // Enum fields — must be from the allowed set if provided
+  if (b.position      !== undefined && !isEnum(b.position,      VALID_POSITIONS))      { res.status(400).json({ error: 'Invalid position value' });      return }
+  if (b.startup_stage !== undefined && !isEnum(b.startup_stage, VALID_STARTUP_STAGES)) { res.status(400).json({ error: 'Invalid startup stage value' }); return }
+  if (b.experience    !== undefined && !isEnum(b.experience,    VALID_EXPERIENCE))     { res.status(400).json({ error: 'Invalid experience value' });    return }
+
+  // Skills array — every item must be a recognised skill
+  if (b.skills !== undefined && !isSkillsArray(b.skills)) {
+    res.status(400).json({ error: 'Skills must be a list of recognised values (max 15)' })
+    return
+  }
+
+  const { data, error } = await (supabase.from('profiles') as any)
     .upsert({
-      id: req.userId!,
-      name,
-      email,
-      university,
-      bio,
-      position,
-      skills,
-      startup_stage,
-      experience,
-      updated_at: new Date().toISOString(),
+      id:            req.userId!,
+      name:          name || undefined,
+      email:         b.email,
+      university:    university || undefined,
+      bio:           bio || undefined,
+      position:      b.position,
+      skills:        b.skills,
+      startup_stage: b.startup_stage,
+      experience:    b.experience,
+      updated_at:    new Date().toISOString(),
     })
     .select()
     .single()

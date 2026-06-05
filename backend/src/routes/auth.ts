@@ -2,21 +2,32 @@ import { Router } from 'express'
 import { supabase } from '../lib/supabase'
 import { requireAuth } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
+import { isEmail, cleanText } from '../lib/validate'
 
 const router = Router()
 
 router.post('/signup', async (req, res) => {
-  const { email, password, name } = req.body as { email: string; password: string; name?: string }
+  const { email, password, name } = req.body as { email: unknown; password: unknown; name: unknown }
 
-  if (!email || !password) {
-    res.status(400).json({ error: 'Email and password are required' })
+  if (!isEmail(email)) {
+    res.status(400).json({ error: 'A valid email address is required' })
+    return
+  }
+  if (typeof password !== 'string' || password.length < 8) {
+    res.status(400).json({ error: 'Password must be at least 8 characters' })
+    return
+  }
+
+  const cleanName = cleanText(name, 100)
+  if (cleanName === null) {
+    res.status(400).json({ error: 'Name must be at most 100 characters' })
     return
   }
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name: name ?? email.split('@')[0] } },
+    options: { data: { name: cleanName || email.split('@')[0] } },
   })
 
   if (error) {
@@ -27,16 +38,19 @@ router.post('/signup', async (req, res) => {
   res.status(201).json({
     user: data.user,
     session: data.session,
-    // session is null when email confirmation is required
     requiresConfirmation: !data.session,
   })
 })
 
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body as { email: string; password: string }
+  const { email, password } = req.body as { email: unknown; password: unknown }
 
-  if (!email || !password) {
-    res.status(400).json({ error: 'Email and password are required' })
+  if (!isEmail(email)) {
+    res.status(400).json({ error: 'A valid email address is required' })
+    return
+  }
+  if (typeof password !== 'string' || !password) {
+    res.status(400).json({ error: 'Password is required' })
     return
   }
 

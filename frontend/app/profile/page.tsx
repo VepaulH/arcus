@@ -164,6 +164,15 @@ export default function ProfilePage() {
   }
 
   async function save() {
+    const name       = draft.name?.trim() ?? ''
+    const bio        = draft.bio?.trim() ?? ''
+    const university = draft.university?.trim() ?? ''
+
+    if (name.length < 1)    { setSaveError('Name is required.');                             return }
+    if (name.length > 100)  { setSaveError('Name must be at most 100 characters.');          return }
+    if (bio.length > 500)   { setSaveError('Bio must be at most 500 characters.');           return }
+    if (university.length > 150) { setSaveError('University must be at most 150 characters.'); return }
+
     setSaving(true)
     setSaveError(null)
     const { error } = await profileApi.update({

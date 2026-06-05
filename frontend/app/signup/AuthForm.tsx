@@ -37,6 +37,16 @@ export default function AuthForm({ initialMode }: { initialMode: 'login' | 'sign
     setError(null)
     setInfo(null)
 
+    if (mode === 'signup' && name.trim().length === 0) {
+      setError('Please enter your name.')
+      return
+    }
+
+    if (mode === 'signup' && name.trim().length > 100) {
+      setError('Name must be at most 100 characters.')
+      return
+    }
+
     if (mode === 'signup' && password.length < 8) {
       setError('Password must be at least 8 characters.')
       return
