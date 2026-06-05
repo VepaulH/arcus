@@ -124,7 +124,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     .limit(1)
 
   if (!existingGoals || existingGoals.length === 0) {
-    const seeds = GOAL_SEEDS[startup_stage] ?? DEFAULT_GOALS
+    const seeds = GOAL_SEEDS[roadmap_id] ?? DEFAULT_GOALS
     const goalRows = seeds.map(g => ({
       user_id:       userId,
       title:         g.title,

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
-import { profileApi, connectionsApi } from '../../lib/api'
+import { profileApi, connectionsApi, authApi } from '../../lib/api'
 import type { IncomingRequest, AcceptedOutgoing } from '../../lib/api'
 
 const SKILLS = [
@@ -75,7 +76,8 @@ function EditableField({
 }
 
 export default function ProfilePage() {
-  const { username, loading: authLoading, isLoggedIn } = useAuth()
+  const { username, loading: authLoading, isLoggedIn, logout } = useAuth()
+  const router = useRouter()
 
   const [profile, setProfile] = useState<ProfileData>(EMPTY_PROFILE)
   const [draft, setDraft] = useState<ProfileData>(EMPTY_PROFILE)
@@ -86,6 +88,16 @@ export default function ProfilePage() {
   const [connectionCount, setConnectionCount] = useState(0)
   const [incomingRequests, setIncomingRequests] = useState<IncomingRequest[]>([])
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDeleteAccount() {
+    setDeleting(true)
+    const { error } = await authApi.deleteAccount()
+    if (error) { setDeleting(false); return }
+    await logout()
+    router.push('/')
+  }
   const [acceptedNotifications, setAcceptedNotifications] = useState<AcceptedOutgoing[]>([])
 
 
@@ -482,6 +494,42 @@ export default function ProfilePage() {
               <p className="text-sm text-slate-300">
                 {profile.startupStage || <span className="text-slate-600 italic">Not set</span>}
               </p>
+            )}
+          </div>
+
+          {/* Danger zone */}
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 flex flex-col gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-red-400 mb-0.5">Danger Zone</h2>
+              <p className="text-xs text-slate-500">Permanently delete your account and all associated data. This cannot be undone.</p>
+            </div>
+            {confirmDelete ? (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-slate-300">Are you sure? Every piece of your data — profile, roadmap, goals, and connections — will be permanently erased.</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={deleting}
+                    className="px-4 py-2 text-sm font-semibold text-white rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 transition-colors"
+                  >
+                    {deleting ? 'Deleting…' : 'Yes, delete my account'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={deleting}
+                    className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="self-start px-4 py-2 text-sm font-semibold text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/10 transition-colors"
+              >
+                Delete account
+              </button>
             )}
           </div>
 

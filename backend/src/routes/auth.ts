@@ -68,8 +68,38 @@ router.post('/login', async (req, res) => {
   })
 })
 
+router.post('/refresh', async (req, res) => {
+  const { refresh_token } = req.body as { refresh_token?: unknown }
+
+  if (typeof refresh_token !== 'string' || !refresh_token) {
+    res.status(400).json({ error: 'refresh_token is required' })
+    return
+  }
+
+  const { data, error } = await supabase.auth.refreshSession({ refresh_token })
+
+  if (error || !data.session) {
+    res.status(401).json({ error: 'Session expired. Please log in again.' })
+    return
+  }
+
+  res.json({
+    access_token:  data.session.access_token,
+    refresh_token: data.session.refresh_token,
+  })
+})
+
 router.post('/logout', requireAuth, async (req: AuthRequest, res) => {
   await supabase.auth.admin.signOut(req.userId!)
+  res.json({ success: true })
+})
+
+router.delete('/account', requireAuth, async (req: AuthRequest, res) => {
+  const { error } = await supabase.auth.admin.deleteUser(req.userId!)
+  if (error) {
+    res.status(500).json({ error: error.message })
+    return
+  }
   res.json({ success: true })
 })
 

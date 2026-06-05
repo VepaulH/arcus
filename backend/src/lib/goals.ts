@@ -1,30 +1,57 @@
-// Stage-appropriate goal seeds. Seeded once when the user completes onboarding.
-export const GOAL_SEEDS: Record<string, { title: string; target: number; unit: string }[]> = {
-  Ideation: [
-    { title: 'Customer interviews',       target: 10, unit: 'interviews' },
-    { title: 'Problem hypotheses tested', target: 3,  unit: 'hypotheses' },
-    { title: 'Market research sessions',  target: 5,  unit: 'sessions'   },
+type GoalSeed = { title: string; target: number; unit: string }
+
+// Goals keyed by roadmap_id — each path has targets specific to where the user actually is.
+export const GOAL_SEEDS: Record<string, GoalSeed[]> = {
+  'solo-ideation': [
+    { title: 'Customer discovery calls',      target: 10, unit: 'calls'       },
+    { title: 'Problem hypotheses tested',     target: 3,  unit: 'hypotheses'  },
+    { title: 'Co-founder conversations',      target: 5,  unit: 'convos'      },
   ],
-  Validation: [
-    { title: 'Customer interviews', target: 20, unit: 'interviews' },
-    { title: 'Waitlist signups',    target: 25, unit: 'signups'    },
-    { title: 'Prototype tests',     target: 5,  unit: 'tests'      },
+  'team-ideation': [
+    { title: 'Customer interviews',           target: 15, unit: 'interviews'  },
+    { title: 'Competitor analyses done',      target: 5,  unit: 'analyses'    },
+    { title: 'Vision alignment sessions',     target: 3,  unit: 'sessions'    },
   ],
-  Building: [
-    { title: 'Features shipped',         target: 5,  unit: 'features' },
-    { title: 'Beta users onboarded',     target: 10, unit: 'users'    },
-    { title: 'User feedback sessions',   target: 8,  unit: 'sessions' },
+  'technical-validation': [
+    { title: 'Prototype user tests',          target: 8,  unit: 'tests'       },
+    { title: 'Bug fixes shipped',             target: 20, unit: 'fixes'       },
+    { title: 'Beta user signups',             target: 15, unit: 'users'       },
   ],
-  Launch: [
-    { title: 'Users acquired',       target: 100,  unit: 'users'    },
-    { title: 'Revenue generated',    target: 1000, unit: '$ MRR'    },
-    { title: 'Channels tested',      target: 5,    unit: 'channels' },
+  'non-technical-validation': [
+    { title: 'Customer validation calls',     target: 15, unit: 'calls'       },
+    { title: 'Landing page experiments',      target: 3,  unit: 'experiments' },
+    { title: 'Partnership conversations',     target: 5,  unit: 'convos'      },
   ],
-  Growth: [
-    { title: 'Monthly active users', target: 500,   unit: 'MAU'     },
-    { title: 'Monthly revenue',      target: 10000, unit: '$ MRR'   },
-    { title: 'Team members hired',   target: 3,     unit: 'people'  },
+  'building-to-launch': [
+    { title: 'Features shipped',              target: 5,  unit: 'features'    },
+    { title: 'Beta users onboarded',          target: 20, unit: 'users'       },
+    { title: 'User feedback sessions',        target: 10, unit: 'sessions'    },
+  ],
+  'revenue-acceleration': [
+    { title: 'New customers acquired',        target: 10, unit: 'customers'   },
+    { title: 'Churn interviews done',         target: 5,  unit: 'interviews'  },
+    { title: 'Revenue experiments run',       target: 3,  unit: 'experiments' },
+  ],
+  'growth-hacking': [
+    { title: 'Growth experiments run',        target: 10, unit: 'experiments' },
+    { title: 'New signups',                   target: 100, unit: 'signups'    },
+    { title: 'Acquisition channels tested',   target: 5,  unit: 'channels'   },
+  ],
+  'fundraising-track': [
+    { title: 'Investor meetings booked',      target: 10, unit: 'meetings'    },
+    { title: 'Warm intros requested',         target: 20, unit: 'intros'      },
+    { title: 'Pitch deck iterations',         target: 3,  unit: 'iterations'  },
+  ],
+  'student-founder': [
+    { title: 'Customer interviews',           target: 10, unit: 'interviews'  },
+    { title: 'Advisor / mentor meetings',     target: 3,  unit: 'meetings'    },
+    { title: 'Startup competition entries',   target: 2,  unit: 'entries'     },
+  ],
+  'scaling-revenue': [
+    { title: 'New team members hired',        target: 3,  unit: 'people'      },
+    { title: 'Process automations built',     target: 3,  unit: 'automations' },
+    { title: 'Enterprise deals closed',       target: 2,  unit: 'deals'       },
   ],
 }
 
-export const DEFAULT_GOALS = GOAL_SEEDS['Ideation']
+export const DEFAULT_GOALS = GOAL_SEEDS['solo-ideation']

@@ -33,52 +33,88 @@ interface Opportunity {
 }
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
-// Replace with backend API calls once data layer is ready.
 
 const STAGES = ['Ideation', 'Validation', 'Building', 'Launch', 'Growth']
 
-const INITIAL_TASKS: Task[] = [
-  {
-    id: 1,
-    title: 'Interview 3 potential customers',
-    description: 'Schedule calls with target users to validate pain points',
-    priority: 'High',
-    dueDate: 'Jun 7',
-    completed: false,
-  },
-  {
-    id: 2,
-    title: 'Create landing page',
-    description: 'Build a one-pager to collect waitlist signups',
-    priority: 'High',
-    dueDate: 'Jun 10',
-    completed: false,
-  },
-  {
-    id: 3,
-    title: 'Define problem statement',
-    description: 'Write a clear 1-sentence problem statement',
-    priority: 'Medium',
-    dueDate: null,
-    completed: true,
-  },
-  {
-    id: 4,
-    title: 'Map competitor landscape',
-    description: 'List 5 competitors and their key differentiators',
-    priority: 'Medium',
-    dueDate: 'Jun 14',
-    completed: false,
-  },
-  {
-    id: 5,
-    title: 'Reach out to 5 potential users',
-    description: 'Find users via LinkedIn or university networks',
-    priority: 'Low',
-    dueDate: 'Jun 12',
-    completed: false,
-  },
-]
+type TaskTemplate = { title: string; description: string; priority: Task['priority'] }
+
+const TASK_TEMPLATES: Record<string, TaskTemplate[]> = {
+  'solo-ideation': [
+    { title: 'Interview 10 potential customers',  description: 'Talk directly to people who have the problem you\'re solving — before writing a line of code.',      priority: 'High'   },
+    { title: 'Write a 1-sentence problem statement', description: 'Force clarity: who has this problem, what is the pain, and why does it matter now?',              priority: 'High'   },
+    { title: 'Research 5 direct competitors',     description: 'Understand who else is solving this and where the gaps are.',                                         priority: 'Medium' },
+    { title: 'Start co-founder search',           description: 'Reach out to 5 potential co-founders in your network with complementary skills.',                    priority: 'Medium' },
+    { title: 'Define your target customer profile', description: 'Write down the specific type of person you\'re building for — job, pain, behaviour.',               priority: 'Low'    },
+  ],
+  'team-ideation': [
+    { title: 'Run a team vision alignment session', description: 'Get everyone on the same page on the problem, the customer, and the goal.',                        priority: 'High'   },
+    { title: 'Interview 15 potential customers',  description: 'Do this together as a team — different founders hear different things.',                              priority: 'High'   },
+    { title: 'Map the competitive landscape',     description: 'List your top 5 competitors, their pricing, and their weaknesses.',                                  priority: 'Medium' },
+    { title: 'Document your unfair advantages',   description: 'What does your team know, own, or access that others don\'t?',                                       priority: 'Medium' },
+    { title: 'Agree on a go-to-market hypothesis', description: 'Pick one channel and one customer segment to test first.',                                          priority: 'Low'    },
+  ],
+  'technical-validation': [
+    { title: 'Ship a testable prototype',         description: 'Build the smallest thing that lets real users experience the core value.',                           priority: 'High'   },
+    { title: 'Recruit 10 beta users',             description: 'Find real people outside your team to test the prototype — not friends.',                           priority: 'High'   },
+    { title: 'Run 5 structured user testing sessions', description: 'Observe, don\'t guide. Watch where users get stuck and what they ignore.',                    priority: 'Medium' },
+    { title: 'Define your core value metric',     description: 'What single number tells you the product is working for users?',                                    priority: 'Medium' },
+    { title: 'Document technical architecture decisions', description: 'Write down the key trade-offs you\'ve made and why.',                                       priority: 'Low'    },
+  ],
+  'non-technical-validation': [
+    { title: 'Create a demand-testing landing page', description: 'Build a simple page that explains the value and collects signups — no code needed.',             priority: 'High'   },
+    { title: 'Interview 15 target customers',     description: 'Focus on the problem, not your solution. Listen for emotion and frequency.',                        priority: 'High'   },
+    { title: 'Identify a technical partner or co-founder', description: 'You need someone who can build it — start that search now.',                              priority: 'Medium' },
+    { title: 'Build a no-code prototype',         description: 'Use Figma, Webflow, or Notion to simulate the experience without engineering.',                     priority: 'Medium' },
+    { title: 'Collect 50 waitlist signups',        description: 'Real demand signal: people giving you their email for something that doesn\'t exist yet.',         priority: 'Low'    },
+  ],
+  'building-to-launch': [
+    { title: 'Ship core feature to beta users',   description: 'Get the one thing that defines your product into users\' hands — cut everything else.',            priority: 'High'   },
+    { title: 'Onboard 20 beta users hands-on',    description: 'Walk them through it yourself. You\'ll spot problems no automated test will catch.',               priority: 'High'   },
+    { title: 'Run weekly user feedback sessions', description: 'Block time every week to talk to users. Make it a habit, not an event.',                            priority: 'Medium' },
+    { title: 'Define your launch channel',        description: 'Pick one: Product Hunt, a Reddit community, your network. One focused bet beats three half-tries.', priority: 'Medium' },
+    { title: 'Set up analytics tracking',         description: 'Instrument the actions that matter before launch so you have a baseline from day one.',             priority: 'Low'    },
+  ],
+  'revenue-acceleration': [
+    { title: 'Interview 5 churned customers',     description: 'Churn is data. Find out what made them leave — it\'s usually one specific moment.',                priority: 'High'   },
+    { title: 'Nail down your pricing structure',  description: 'Test a price increase on new customers. Willingness to pay is higher than founders think.',        priority: 'High'   },
+    { title: 'Build a simple sales pipeline',     description: 'Track every deal in a spreadsheet or CRM — lead, contacted, demo, closed.',                        priority: 'Medium' },
+    { title: 'Run 3 retention experiments',       description: 'Activation email, onboarding checklist, check-in call — pick one and measure it.',                 priority: 'Medium' },
+    { title: 'Document your customer onboarding flow', description: 'Write down every step from sign-up to first value. Every friction point is lost revenue.',   priority: 'Low'    },
+  ],
+  'growth-hacking': [
+    { title: 'Double down on your top acquisition channel', description: 'Kill the channels that aren\'t working and put all budget into the one that is.',       priority: 'High'   },
+    { title: 'Launch a referral programme',       description: 'The cheapest customer is one who was sent by another customer. Make it easy to share.',            priority: 'High'   },
+    { title: 'A/B test your landing page headline', description: 'Your headline is your most-read sentence. A 10% lift here compounds across every visitor.',    priority: 'Medium' },
+    { title: 'Optimise the user onboarding funnel', description: 'Map activation drop-off step by step. Fix the biggest leak first.',                             priority: 'Medium' },
+    { title: 'Set up weekly retention cohort tracking', description: 'Growth without retention is a leaky bucket. Know your D7, D30 numbers.',                   priority: 'Low'    },
+  ],
+  'fundraising-track': [
+    { title: 'Prepare a concise 10-slide pitch deck', description: 'Problem, solution, market, traction, team, ask. Every slide should earn its place.',         priority: 'High'   },
+    { title: 'Build a list of 20 target investors',  description: 'Research stage, cheque size, and portfolio fit before reaching out to anyone.',               priority: 'High'   },
+    { title: 'Get 5 warm introductions',           description: 'Cold emails close at 1%. A warm intro from a portfolio founder closes at 20%+.',                 priority: 'Medium' },
+    { title: 'Update your financial model',        description: 'Investors will stress-test your numbers. Know your assumptions inside out.',                      priority: 'Medium' },
+    { title: 'Prepare a due diligence data room',  description: 'Cap table, contracts, financials, IP ownership. Have it ready before the first meeting.',        priority: 'Low'    },
+  ],
+  'student-founder': [
+    { title: 'Interview 10 people who have this problem', description: 'Your campus is a live focus group — use it. Talk to students, staff, and professors.',  priority: 'High'   },
+    { title: 'Apply to one startup competition',  description: 'Competitions force clarity, build your network, and can fund early experiments.',                  priority: 'High'   },
+    { title: 'Meet with a professor or advisor',  description: 'University advisors have seen hundreds of early-stage ideas — their patterns are valuable.',       priority: 'Medium' },
+    { title: 'Validate on campus first',          description: 'Prove the idea works in a small, contained environment before thinking bigger.',                   priority: 'Medium' },
+    { title: 'Find a co-founder through your programme', description: 'Look in your CS, business, or design department for complementary skills.',               priority: 'Low'    },
+  ],
+  'scaling-revenue': [
+    { title: 'Make your next key hire',           description: 'One great hire at this stage is worth more than three okay ones. Be patient and specific.',        priority: 'High'   },
+    { title: 'Build a repeatable sales process',  description: 'Document every step from lead to close so any future rep can follow it without you.',             priority: 'High'   },
+    { title: 'Automate one manual internal workflow', description: 'Find the most time-consuming manual task and eliminate it.',                                  priority: 'Medium' },
+    { title: 'Set up monthly business reviews',   description: 'Revenue, churn, NPS, runway. One hour a month looking at the same numbers builds discipline.',    priority: 'Medium' },
+    { title: 'Research Series A benchmarks for your sector', description: 'Know the ARR, growth rate, and NRR investors expect before you need to raise.',      priority: 'Low'    },
+  ],
+}
+
+function buildTasks(roadmapId: string | null | undefined): Task[] {
+  const templates = TASK_TEMPLATES[roadmapId ?? ''] ?? TASK_TEMPLATES['solo-ideation']
+  return templates.map((t, i) => ({ ...t, id: i + 1, dueDate: null, completed: false }))
+}
 
 const FALLBACK_GOALS: Goal[] = []
 
@@ -221,7 +257,7 @@ function ChevronRight() {
 export default function DashboardPage() {
   const { username } = useAuth()
   const router = useRouter()
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
+  const [tasks, setTasks] = useState<Task[]>([])
   const [showWelcome, setShowWelcome] = useState(false)
   const [currentStageIndex, setCurrentStageIndex] = useState(0)
   const [greeting, setGreeting] = useState('')
@@ -286,6 +322,8 @@ export default function DashboardPage() {
 
       const insightList = buildInsights(p?.startup_stage, o?.looking_for, o?.revenue_range, p?.skills)
       if (insightList.length > 0) setInsights(insightList)
+
+      setTasks(buildTasks(o?.roadmap_id))
     })
   }, [])
 

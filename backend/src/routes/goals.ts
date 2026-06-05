@@ -36,13 +36,13 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
   }
 
   if (!data || data.length === 0) {
-    const { data: profile } = await db
-      .from('profiles')
-      .select('startup_stage')
-      .eq('id', userId)
-      .single()
+    const { data: onboarding } = await db
+      .from('onboarding_data')
+      .select('roadmap_id')
+      .eq('user_id', userId)
+      .maybeSingle()
 
-    const seeds = GOAL_SEEDS[profile?.startup_stage ?? ''] ?? DEFAULT_GOALS
+    const seeds = GOAL_SEEDS[onboarding?.roadmap_id ?? ''] ?? DEFAULT_GOALS
     const rows = seeds.map((g: typeof seeds[0]) => ({
       user_id: userId,
       title: g.title,

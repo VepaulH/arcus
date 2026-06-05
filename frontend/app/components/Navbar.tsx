@@ -2,11 +2,13 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
 import { connectionsApi } from '../../lib/api'
 
 export default function Navbar() {
   const { isLoggedIn, username, loading, logout } = useAuth()
+  const router = useRouter()
   const [requestCount, setRequestCount] = useState(0)
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function Navbar() {
               </Link>
 
               <button
-                onClick={logout}
+                onClick={async () => { await logout(); router.push('/') }}
                 className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-300 transition-colors"
               >
                 Log out

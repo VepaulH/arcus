@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import authRoutes from './routes/auth'
 import profileRoutes from './routes/profile'
 import connectRoutes from './routes/connect'
@@ -12,6 +13,7 @@ const app = express()
 const PORT = process.env.PORT ?? 3001
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3001'
 
+app.use(helmet())
 app.use(cors({ origin: FRONTEND_URL, credentials: true }))
 app.use(express.json())
 

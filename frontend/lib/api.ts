@@ -7,9 +7,39 @@ function getToken(): string | null {
   return localStorage.getItem('arcus_token')
 }
 
+// Attempt to get a fresh access token using the stored refresh token.
+// Returns true and updates localStorage on success; clears auth state on failure.
+async function tryRefresh(): Promise<boolean> {
+  const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('arcus_refresh_token') : null
+  if (!refreshToken) return false
+
+  try {
+    const res = await fetch(`${API_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+    if (!res.ok) {
+      localStorage.removeItem('arcus_token')
+      localStorage.removeItem('arcus_refresh_token')
+      localStorage.removeItem('arcus_username')
+      localStorage.removeItem('arcus_user_id')
+      window.dispatchEvent(new CustomEvent('arcus:session-expired'))
+      return false
+    }
+    const { access_token, refresh_token } = await res.json() as { access_token: string; refresh_token: string }
+    localStorage.setItem('arcus_token', access_token)
+    localStorage.setItem('arcus_refresh_token', refresh_token)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function apiFetch<T>(
   path: string,
-  options?: RequestInit
+  options?: RequestInit,
+  _retry = false
 ): Promise<{ data: T | null; error: string | null }> {
   const token = getToken()
   try {
@@ -21,6 +51,13 @@ async function apiFetch<T>(
         ...options?.headers,
       },
     })
+
+    // On 401, attempt a token refresh once then retry the original request.
+    if (res.status === 401 && !_retry) {
+      const refreshed = await tryRefresh()
+      if (refreshed) return apiFetch<T>(path, options, true)
+      return { data: null, error: 'Session expired. Please log in again.' }
+    }
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string }
@@ -37,13 +74,13 @@ async function apiFetch<T>(
 // ── Auth ─────────────────────────────────────────────────────
 
 interface LoginResponse {
-  session: { access_token: string }
+  session: { access_token: string; refresh_token: string }
   user: { id: string }
   username: string
 }
 
 interface SignupResponse {
-  session: { access_token: string } | null
+  session: { access_token: string; refresh_token: string } | null
   user: { id: string }
   requiresConfirmation: boolean
 }
@@ -85,6 +122,9 @@ export const authApi = {
 
   logout: () =>
     apiFetch<{ success: boolean }>('/api/auth/logout', { method: 'POST' }),
+
+  deleteAccount: () =>
+    apiFetch<{ success: boolean }>('/api/auth/account', { method: 'DELETE' }),
 }
 
 // ── Profile ──────────────────────────────────────────────────

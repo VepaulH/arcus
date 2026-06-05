@@ -39,6 +39,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserId(storedUserId ?? '')
     }
     setLoading(false)
+
+    // Clear auth state when the API layer detects an unrecoverable 401
+    const handleExpired = () => {
+      setIsLoggedIn(false)
+      setUsername('')
+      setUserId('')
+    }
+    window.addEventListener('arcus:session-expired', handleExpired)
+    return () => window.removeEventListener('arcus:session-expired', handleExpired)
   }, [])
 
   const login = async (email: string, password: string): Promise<{ error: string | null }> => {
@@ -46,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error || !data) return { error: error ?? 'Login failed' }
 
     localStorage.setItem('arcus_token', data.session.access_token)
+    localStorage.setItem('arcus_refresh_token', data.session.refresh_token)
     localStorage.setItem('arcus_username', data.username)
     localStorage.setItem('arcus_user_id', data.user.id)
     setIsLoggedIn(true)
@@ -65,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data.session) {
       const displayName = name || email.split('@')[0]
       localStorage.setItem('arcus_token', data.session.access_token)
+      localStorage.setItem('arcus_refresh_token', data.session.refresh_token)
       localStorage.setItem('arcus_username', displayName)
       localStorage.setItem('arcus_user_id', data.user.id)
       setIsLoggedIn(true)
@@ -78,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await authApi.logout()
     localStorage.removeItem('arcus_token')
+    localStorage.removeItem('arcus_refresh_token')
     localStorage.removeItem('arcus_username')
     localStorage.removeItem('arcus_user_id')
     setIsLoggedIn(false)
