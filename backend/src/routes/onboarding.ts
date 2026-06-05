@@ -130,11 +130,55 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 router.get('/progress', requireAuth, async (req: AuthRequest, res) => {
   const userId = req.userId!
 
-  const { data: onboarding } = await supabase
+  let { data: onboarding } = await supabase
     .from('onboarding_data')
     .select('roadmap_id')
     .eq('user_id', userId)
     .maybeSingle()
+
+  // Backfill: users who completed onboarding before the roadmap feature was added
+  // have profile data but no onboarding_data row. Compute and seed on first access.
+  if (!(onboarding as any)?.roadmap_id) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('startup_stage, position, skills, experience')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if ((profile as any)?.startup_stage && (profile as any)?.position) {
+      const roadmap_id = computeRoadmapId({
+        startup_stage: (profile as any).startup_stage,
+        position:      (profile as any).position,
+        revenue_range: '',
+        looking_for:   '',
+        skills:        (profile as any).skills ?? [],
+        experience:    (profile as any).experience ?? '',
+      })
+
+      await supabase
+        .from('onboarding_data')
+        .upsert({ user_id: userId, roadmap_id, updated_at: new Date().toISOString() } as any, { onConflict: 'user_id' })
+
+      onboarding = { roadmap_id } as any
+
+      const { data: existingProgress } = await supabase
+        .from('roadmap_progress')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (!existingProgress || existingProgress.length === 0) {
+        const initialNodes = ROADMAP_INITIAL_NODES[roadmap_id]
+        const progressRows = initialNodes.map(n => ({
+          user_id:  userId,
+          node_id:  n.id,
+          status:   n.status,
+          progress: 0,
+        }))
+        await supabase.from('roadmap_progress').insert(progressRows as any)
+      }
+    }
+  }
 
   const { data: progress, error } = await supabase
     .from('roadmap_progress')

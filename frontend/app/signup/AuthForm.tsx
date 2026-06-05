@@ -37,6 +37,11 @@ export default function AuthForm({ initialMode }: { initialMode: 'login' | 'sign
     setError(null)
     setInfo(null)
 
+    if (mode === 'signup' && password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+
     if (mode === 'signup' && password !== confirmPassword) {
       setError('Passwords do not match.')
       return
@@ -149,7 +154,7 @@ export default function AuthForm({ initialMode }: { initialMode: 'login' | 'sign
               )}
             </div>
             <input type="password" placeholder="••••••••" value={password}
-              onChange={e => setPassword(e.target.value)} required className={inputClass} />
+              onChange={e => setPassword(e.target.value)} required minLength={mode === 'signup' ? 8 : undefined} className={inputClass} />
           </div>
 
           {mode === 'signup' && (
