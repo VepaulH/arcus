@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";
 import Navbar from "./components/Navbar";
+import CookieBanner from "./components/CookieBanner";
 import { AuthProvider } from "./context/AuthContext";
 
 const geistSans = Geist({
@@ -34,6 +36,16 @@ export default function RootLayout({
         <AuthProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
+          <footer className="border-t border-white/8 px-6 py-6 mt-auto">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+              <span>© {new Date().getFullYear()} Arcus. All rights reserved.</span>
+              <div className="flex items-center gap-5">
+                <Link href="/privacy" className="hover:text-slate-400 transition-colors">Privacy Policy</Link>
+                <Link href="/cookies" className="hover:text-slate-400 transition-colors">Cookie Policy</Link>
+              </div>
+            </div>
+          </footer>
+          <CookieBanner />
         </AuthProvider>
       </body>
     </html>
