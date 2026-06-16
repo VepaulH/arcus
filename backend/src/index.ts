@@ -15,8 +15,9 @@ const ALLOWED_ORIGINS = (process.env.FRONTEND_URL ?? 'http://localhost:3001')
   .split(',')
   .map(o => o.trim())
 
-const corsOptions: cors.CorsOptions = {
-  origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.includes(origin)),
+const corsOptions = {
+  origin: (origin: string | undefined, cb: (e: Error | null, allow?: boolean) => void) =>
+    cb(null, !origin || ALLOWED_ORIGINS.includes(origin)),
   credentials: true,
 }
 
