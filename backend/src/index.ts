@@ -11,10 +11,18 @@ import goalsRoutes from './routes/goals'
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
-const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3001'
+const ALLOWED_ORIGINS = (process.env.FRONTEND_URL ?? 'http://localhost:3001')
+  .split(',')
+  .map(o => o.trim())
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.includes(origin)),
+  credentials: true,
+}
 
 app.use(helmet())
-app.use(cors({ origin: FRONTEND_URL, credentials: true }))
+app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
 app.use(express.json())
 
 app.use('/api/auth', authRoutes)
