@@ -53,7 +53,8 @@ async function apiFetch<T>(
     })
 
     // On 401, attempt a token refresh once then retry the original request.
-    if (res.status === 401 && !_retry) {
+    // Skip refresh for auth endpoints — a 401 there means bad credentials, not an expired session.
+    if (res.status === 401 && !_retry && path !== '/api/auth/login' && path !== '/api/auth/signup') {
       const refreshed = await tryRefresh()
       if (refreshed) return apiFetch<T>(path, options, true)
       return { data: null, error: 'Session expired. Please log in again.' }
