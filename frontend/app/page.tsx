@@ -36,9 +36,9 @@ export default function Home() {
       <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
         <div className="animate-float group rounded-2xl p-8 bg-white/5 border border-white/8 backdrop-blur-sm hover:bg-white/8 transition-colors">
           <div className="w-10 h-10 rounded-xl bg-blue-400/10 border border-blue-400/15 flex items-center justify-center mb-5">
-            <span className="text-blue-300 text-sm font-bold">AI</span>
+            <span className="text-blue-300 text-sm font-bold">🎯</span>
           </div>
-          <h3 className="text-base font-semibold text-slate-100 mb-2">arcus.ai</h3>
+          <h3 className="text-base font-semibold text-slate-100 mb-2">Arcus Mentor</h3>
           <p className="text-slate-500 text-sm leading-relaxed">
             Stay on track with weekly goals tailored to your stage. Log
             progress on the tasks that actually move your startup forward,

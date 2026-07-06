@@ -190,6 +190,36 @@ create policy "connections: own delete"
   using (auth.uid() = requester_id or auth.uid() = addressee_id);
 
 
+-- ── opportunities ────────────────────────────────────────────
+-- Live startup opportunities (competitions, accelerators, hackathons, grants),
+-- refreshed weekly by an LLM web-search job.
+
+create table public.opportunities (
+  id          uuid        default gen_random_uuid() primary key,
+  title       text        not null,
+  type        text        check (type in ('Competition', 'Accelerator', 'Hackathon', 'Grant', 'Event')) not null,
+  url         text        not null,
+  description text,
+  deadline    text,
+  source      text,
+  fetched_at  timestamptz default now() not null,
+  created_at  timestamptz default now() not null
+);
+
+alter table public.opportunities enable row level security;
+
+create policy "opportunities: authenticated read"
+  on public.opportunities for select
+  to authenticated
+  using (true);
+
+create policy "opportunities: service_role all"
+  on public.opportunities for all
+  to service_role
+  using (true)
+  with check (true);
+
+
 -- ── trigger: create profile on signup ────────────────────────
 -- Automatically inserts a profiles row when a new auth user is created.
 

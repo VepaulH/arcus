@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
-import { profileApi, onboardingApi, connectionsApi, goalsApi } from '../../lib/api'
-import type { Goal } from '../../lib/api'
+import { profileApi, onboardingApi, connectionsApi, goalsApi, opportunitiesApi } from '../../lib/api'
+import type { Goal, Opportunity } from '../../lib/api'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -24,13 +24,6 @@ interface Metric {
   delta: string | null
 }
 
-
-interface Opportunity {
-  id: number
-  title: string
-  type: 'Competition' | 'Accelerator' | 'Hackathon' | 'Grant' | 'Event'
-  href: string
-}
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
 
@@ -203,13 +196,6 @@ function buildInsights(
 }
 
 
-const OPPORTUNITIES: Opportunity[] = [
-  { id: 1, title: 'MIT $100K Business Competition', type: 'Competition', href: 'https://www.mit100k.org' },
-  { id: 2, title: 'Y Combinator',                  type: 'Accelerator', href: 'https://www.ycombinator.com/apply' },
-  { id: 3, title: 'HackMIT',                        type: 'Hackathon',   href: 'https://hackmit.org' },
-  { id: 4, title: 'NSF SBIR Phase I Grant',         type: 'Grant',       href: 'https://seedfund.nsf.gov' },
-]
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function computeGreeting(): string {
@@ -276,6 +262,7 @@ export default function DashboardPage() {
   const [goalsLoading, setGoalsLoading] = useState(true)
   const [goalsError, setGoalsError] = useState<string | null>(null)
   const [incrementing, setIncrementing] = useState<Set<string>>(new Set())
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
 
   async function handleIncrement(id: string) {
     setIncrementing(prev => new Set(prev).add(id))
@@ -300,6 +287,9 @@ export default function DashboardPage() {
       if (error) setGoalsError(error)
       else setGoals(data ?? [])
       setGoalsLoading(false)
+    })
+    opportunitiesApi.getAll().then(({ data }) => {
+      if (data) setOpportunities(data)
     })
     Promise.all([
       profileApi.get(),
@@ -603,27 +593,31 @@ export default function DashboardPage() {
         <h2 className="text-base font-semibold text-slate-100 mb-0.5">Opportunities</h2>
         <p className="text-xs text-slate-500 mb-5">Competitions, accelerators, hackathons & grants — check each site for current deadlines</p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {OPPORTUNITIES.map(opp => (
-            <a
-              key={opp.id}
-              href={opp.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 p-4 rounded-xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.06] transition-colors group"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-200 leading-snug mb-2">{opp.title}</p>
-                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${OPPORTUNITY_TYPE_STYLE[opp.type]}`}>
-                  {opp.type}
+        {opportunities.length === 0 ? (
+          <p className="text-sm text-slate-500">No opportunities available right now — check back soon.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {opportunities.map(opp => (
+              <a
+                key={opp.id}
+                href={opp.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-4 rounded-xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.06] transition-colors group"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-200 leading-snug mb-2">{opp.title}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${OPPORTUNITY_TYPE_STYLE[opp.type]}`}>
+                    {opp.type}
+                  </span>
+                </div>
+                <span className="text-slate-600 group-hover:text-slate-400 transition-colors shrink-0">
+                  <ChevronRight />
                 </span>
-              </div>
-              <span className="text-slate-600 group-hover:text-slate-400 transition-colors shrink-0">
-                <ChevronRight />
-              </span>
-            </a>
-          ))}
-        </div>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

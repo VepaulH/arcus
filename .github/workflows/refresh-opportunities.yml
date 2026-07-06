@@ -1,0 +1,19 @@
+name: Refresh opportunities
+
+on:
+  schedule:
+    # Every Monday at 09:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call refresh endpoint
+        run: |
+          curl -sf -X POST "${BACKEND_URL}/api/opportunities/refresh" \
+            -H "x-refresh-secret: ${REFRESH_SECRET}"
+        env:
+          BACKEND_URL: ${{ secrets.ARCUS_BACKEND_URL }}
+          REFRESH_SECRET: ${{ secrets.OPPORTUNITIES_REFRESH_SECRET }}

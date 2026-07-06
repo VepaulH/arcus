@@ -216,6 +216,24 @@ export interface Goal {
   unit: string
 }
 
+// ── Opportunities ──────────────────────────────────────────────
+
+export interface Opportunity {
+  id: string
+  title: string
+  type: 'Competition' | 'Accelerator' | 'Hackathon' | 'Grant' | 'Event'
+  url: string
+  description: string | null
+  deadline: string | null
+  source: string | null
+  fetched_at: string
+}
+
+export const opportunitiesApi = {
+  getAll: () =>
+    apiFetch<Opportunity[]>('/api/opportunities'),
+}
+
 export const goalsApi = {
   getAll: () =>
     apiFetch<Goal[]>('/api/goals'),

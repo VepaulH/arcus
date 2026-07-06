@@ -8,6 +8,7 @@ import connectRoutes from './routes/connect'
 import connectionsRoutes from './routes/connections'
 import onboardingRoutes from './routes/onboarding'
 import goalsRoutes from './routes/goals'
+import opportunitiesRoutes from './routes/opportunities'
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
@@ -32,6 +33,7 @@ app.use('/api/connect', connectRoutes)
 app.use('/api/connections', connectionsRoutes)
 app.use('/api/onboarding', onboardingRoutes)
 app.use('/api/goals', goalsRoutes)
+app.use('/api/opportunities', opportunitiesRoutes)
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' })

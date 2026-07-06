@@ -129,6 +129,39 @@ export interface Database {
           updated_at?: string
         }
       }
+      opportunities: {
+        Row: {
+          id: string
+          title: string
+          type: 'Competition' | 'Accelerator' | 'Hackathon' | 'Grant' | 'Event'
+          url: string
+          description: string | null
+          deadline: string | null
+          source: string | null
+          fetched_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          type: 'Competition' | 'Accelerator' | 'Hackathon' | 'Grant' | 'Event'
+          url: string
+          description?: string | null
+          deadline?: string | null
+          source?: string | null
+          fetched_at?: string
+          created_at?: string
+        }
+        Update: {
+          title?: string
+          type?: 'Competition' | 'Accelerator' | 'Hackathon' | 'Grant' | 'Event'
+          url?: string
+          description?: string | null
+          deadline?: string | null
+          source?: string | null
+          fetched_at?: string
+        }
+      }
       onboarding_data: {
         Row: {
           id: string
@@ -163,6 +196,7 @@ export interface Database {
 }
 
 export type Profile = Database['public']['Tables']['profiles']['Row']
+export type Opportunity = Database['public']['Tables']['opportunities']['Row']
 export type OnboardingData = {
   id: string
   user_id: string
