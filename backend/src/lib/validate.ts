@@ -42,3 +42,8 @@ export function cleanText(v: unknown, maxLen: number, minLen = 0): string | null
 export function isProgress(v: unknown): v is number {
   return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 100
 }
+
+// Escapes LIKE/ILIKE wildcard characters so user search input can't inject % or _ patterns.
+export function escapeLike(v: string): string {
+  return v.replace(/[\\%_]/g, c => `\\${c}`)
+}

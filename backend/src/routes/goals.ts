@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { requireAuth } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
 import { GOAL_SEEDS, DEFAULT_GOALS } from '../lib/goals'
+import { isUUID } from '../lib/validate'
 
 type GoalRow = {
   id: string
@@ -73,6 +74,11 @@ router.post('/:id/increment', requireAuth, async (req: AuthRequest, res) => {
   const userId = req.userId!
   const { id } = req.params
 
+  if (!isUUID(id)) {
+    res.status(400).json({ error: 'Invalid goal id' })
+    return
+  }
+
   const { data: existing, error: fetchError } = await db
     .from('weekly_goals')
     .select('current_count, target')
@@ -105,6 +111,11 @@ router.post('/:id/increment', requireAuth, async (req: AuthRequest, res) => {
 router.post('/:id/decrement', requireAuth, async (req: AuthRequest, res) => {
   const userId = req.userId!
   const { id } = req.params
+
+  if (!isUUID(id)) {
+    res.status(400).json({ error: 'Invalid goal id' })
+    return
+  }
 
   const { data: existing, error: fetchError } = await db
     .from('weekly_goals')

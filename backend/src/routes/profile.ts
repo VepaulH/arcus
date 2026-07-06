@@ -36,9 +36,10 @@ router.put('/', requireAuth, async (req: AuthRequest, res) => {
   if (university === null) { res.status(400).json({ error: 'University must be at most 150 characters' });        return }
   if (bio === null)        { res.status(400).json({ error: 'Bio must be at most 500 characters' });               return }
 
-  // Email — validate format if provided
-  if (b.email !== undefined && !isEmail(b.email)) {
-    res.status(400).json({ error: 'A valid email address is required' })
+  // Email changes must go through Supabase Auth (enforces uniqueness and sends a
+  // confirmation email to the new address) — never write directly to profiles.email.
+  if (b.email !== undefined) {
+    res.status(400).json({ error: 'Email cannot be changed here. Use the email change endpoint.' })
     return
   }
 
@@ -57,7 +58,6 @@ router.put('/', requireAuth, async (req: AuthRequest, res) => {
     .upsert({
       id:            req.userId!,
       name:          name || undefined,
-      email:         b.email,
       university:    university || undefined,
       bio:           bio || undefined,
       position:      b.position,
@@ -75,6 +75,26 @@ router.put('/', requireAuth, async (req: AuthRequest, res) => {
   }
 
   res.json(data)
+})
+
+// Change account email — sends a confirmation link to the new address via Supabase Auth.
+// profiles.email is kept in sync separately once the change is confirmed (see auth webhook/trigger).
+router.post('/email', requireAuth, async (req: AuthRequest, res) => {
+  const { email } = req.body as { email: unknown }
+
+  if (!isEmail(email)) {
+    res.status(400).json({ error: 'A valid email address is required' })
+    return
+  }
+
+  const { error } = await supabase.auth.admin.updateUserById(req.userId!, { email })
+
+  if (error) {
+    res.status(400).json({ error: error.message })
+    return
+  }
+
+  res.json({ success: true, message: 'Confirmation email sent to the new address.' })
 })
 
 export default router

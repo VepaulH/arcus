@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { requireAuth } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
 import type { Profile } from '../../types/database.types'
-import { isEnum, cleanText, VALID_POSITIONS, VALID_SKILLS } from '../lib/validate'
+import { isEnum, cleanText, escapeLike, VALID_POSITIONS, VALID_SKILLS } from '../lib/validate'
 
 const router = Router()
 
@@ -41,7 +41,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
   }
 
   if (cleanSearch) {
-    query = query.ilike('name', `%${cleanSearch}%`)
+    query = query.ilike('name', `%${escapeLike(cleanSearch)}%`)
   }
 
   const { data, error } = await query
