@@ -40,9 +40,9 @@ export default function Home() {
           </div>
           <h3 className="text-base font-semibold text-slate-100 mb-2">arcus.ai</h3>
           <p className="text-slate-500 text-sm leading-relaxed">
-            An intelligent assistant built for founders. Get answers to startup
-            questions, validate ideas, and draft your business plan with AI
-            tailored for student entrepreneurs.
+            Stay on track with weekly goals tailored to your stage. Log
+            progress on the tasks that actually move your startup forward,
+            week after week.
           </p>
         </div>
 
